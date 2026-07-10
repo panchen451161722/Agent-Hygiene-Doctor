@@ -18,61 +18,101 @@ export class CliError extends Error {
   }
 }
 
+const CLI_ERROR_DETAILS: Record<CliErrorCode, string> = {
+  "AH-CLI-INVALID-AGENT":
+    "Unsupported agent. Expected codex, claude, or hermes.",
+  "AH-CLI-INVALID-ARGUMENT": "Invalid command-line arguments.",
+};
+
+const MAX_CLI_ERROR_DETAIL_LENGTH = 120;
+
+function sanitizeCatalogDetail(detail: string): string {
+  return detail
+    .replace(/[\u0000-\u001f\u007f-\u009f]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, MAX_CLI_ERROR_DETAIL_LENGTH);
+}
+
+export function formatCliError(error: CliError): string {
+  const detail = sanitizeCatalogDetail(CLI_ERROR_DETAILS[error.code]);
+  return `${error.code}: ${detail}`;
+}
+
 export type Agent = "codex" | "claude" | "hermes";
 export type OutputFormat = "terminal" | "json";
 export type FailureLevel = "error" | "warning";
 
-interface SharedCliOptions {
+export interface DoctorCliOptions {
+  command: "doctor";
   agents: Agent[];
   project?: string;
   format: OutputFormat;
+  agentMode: boolean;
   interactive: boolean;
   color: boolean;
   failOn: FailureLevel;
   verbose: boolean;
+}
+
+export interface SetupCliOptions {
+  command: "setup";
+  agents: Agent[];
   dryRun: boolean;
   yes: boolean;
   force: boolean;
   uninstall: boolean;
 }
 
-export type CliOptions =
-  | ({ command: "doctor" } & SharedCliOptions)
-  | ({ command: "setup" } & SharedCliOptions);
+export type CliOptions = DoctorCliOptions | SetupCliOptions;
 
-interface RawCliOptions {
-  agent: Agent[];
+export interface CliDisplay {
+  kind: "display";
+  exitCode: 0;
+  output: string;
+}
+
+export type CliParseResult = CliOptions | CliDisplay;
+
+interface RawCommonOptions {
+  agent?: Agent[];
+}
+
+interface RawDoctorOptions extends RawCommonOptions {
   project?: string;
   format: OutputFormat;
-  agentMode: boolean;
+  agentMode?: boolean;
   failOn: FailureLevel;
-  verbose: boolean;
-  dryRun: boolean;
-  yes: boolean;
-  force: boolean;
-  uninstall: boolean;
+  verbose?: boolean;
+}
+
+interface RawSetupOptions extends RawCommonOptions {
+  dryRun?: boolean;
+  yes?: boolean;
+  force?: boolean;
+  uninstall?: boolean;
 }
 
 const SUPPORTED_AGENTS: readonly Agent[] = ["codex", "claude", "hermes"];
 
 function collectAgent(value: string, previous: Agent[]): Agent[] {
   if (!SUPPORTED_AGENTS.includes(value as Agent)) {
-    throw new CliError(
-      CLI_ERROR_CODES.invalidAgent,
-      `Unsupported agent "${value}"`,
-    );
+    throw new CliError(CLI_ERROR_CODES.invalidAgent);
   }
 
   return [...previous, value as Agent];
 }
 
-function configureCommand(command: Command): Command {
-  return command
-    .addOption(
-      new Option("--agent <agent>", "agent to inspect")
-        .argParser(collectAgent)
-        .default([]),
-    )
+function addAgentOption(command: Command): Command {
+  return command.addOption(
+    new Option("--agent <agent>", "agent to inspect")
+      .argParser(collectAgent)
+      .default([]),
+  );
+}
+
+function configureDoctorCommand(command: Command): Command {
+  return addAgentOption(command)
     .option("--project <path>", "project directory")
     .addOption(
       new Option("--format <format>", "output format")
@@ -85,53 +125,68 @@ function configureCommand(command: Command): Command {
         .choices(["error", "warning"])
         .default("error"),
     )
-    .option("--verbose", "enable verbose output")
+    .option("--verbose", "enable verbose output");
+}
+
+function configureSetupCommand(command: Command): Command {
+  return addAgentOption(command)
     .option("--dry-run", "show actions without applying them")
     .option("--yes", "accept prompts")
     .option("--force", "force the requested operation")
     .option("--uninstall", "remove an existing setup");
 }
 
-function normalizeOptions(
-  command: "doctor" | "setup",
-  raw: RawCliOptions,
-): CliOptions {
-  const format = raw.agentMode ? "json" : raw.format;
+function normalizeDoctorOptions(raw: RawDoctorOptions): DoctorCliOptions {
+  const agentMode = raw.agentMode ?? false;
+  const format = agentMode ? "json" : raw.format;
 
   return {
-    command,
-    agents: raw.agent,
+    command: "doctor",
+    agents: raw.agent ?? [],
     ...(raw.project === undefined ? {} : { project: raw.project }),
     format,
-    interactive: !raw.agentMode,
-    color: !raw.agentMode,
+    agentMode,
+    interactive: !agentMode,
+    color: !agentMode,
     failOn: raw.failOn,
-    verbose: raw.verbose,
-    dryRun: raw.dryRun,
-    yes: raw.yes,
-    force: raw.force,
-    uninstall: raw.uninstall,
+    verbose: raw.verbose ?? false,
   };
 }
 
-export function parseCliOptions(argv: readonly string[]): CliOptions {
+function normalizeSetupOptions(raw: RawSetupOptions): SetupCliOptions {
+  return {
+    command: "setup",
+    agents: raw.agent ?? [],
+    dryRun: raw.dryRun ?? false,
+    yes: raw.yes ?? false,
+    force: raw.force ?? false,
+    uninstall: raw.uninstall ?? false,
+  };
+}
+
+export function parseCliOptions(argv: readonly string[]): CliParseResult {
+  const output: string[] = [];
   const program = new Command()
     .name("agent-hygiene")
+    .version("0.1.0")
     .exitOverride()
     .configureOutput({
-      writeOut: () => undefined,
-      writeErr: () => undefined,
+      writeOut: (text) => output.push(text),
+      writeErr: (text) => output.push(text),
     });
 
   let parsed: CliOptions | undefined;
 
-  for (const commandName of ["doctor", "setup"] as const) {
-    configureCommand(program.command(commandName)).action(
-      (raw: RawCliOptions) => {
-        parsed = normalizeOptions(commandName, raw);
-      },
-    );
-  }
+  configureDoctorCommand(program.command("doctor")).action(
+    (raw: RawDoctorOptions) => {
+      parsed = normalizeDoctorOptions(raw);
+    },
+  );
+  configureSetupCommand(program.command("setup")).action(
+    (raw: RawSetupOptions) => {
+      parsed = normalizeSetupOptions(raw);
+    },
+  );
 
   try {
     program.parse(["node", "agent-hygiene", ...argv]);
@@ -140,16 +195,20 @@ export function parseCliOptions(argv: readonly string[]): CliOptions {
       throw error;
     }
     if (error instanceof CommanderError) {
-      throw new CliError(CLI_ERROR_CODES.invalidArgument, error.message);
+      if (
+        error.code === "commander.helpDisplayed" ||
+        error.code === "commander.version"
+      ) {
+        return { kind: "display", exitCode: 0, output: output.join("") };
+      }
+
+      throw new CliError(CLI_ERROR_CODES.invalidArgument);
     }
     throw error;
   }
 
   if (parsed === undefined) {
-    throw new CliError(
-      CLI_ERROR_CODES.invalidArgument,
-      "A command is required",
-    );
+    throw new CliError(CLI_ERROR_CODES.invalidArgument);
   }
 
   return parsed;
