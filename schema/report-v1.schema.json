@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-hygiene.dev/schema/report-v1.schema.json",
+  "title": "Agent Hygiene Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tool", "scan", "roots", "adapters", "summary", "inventory", "findings", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "tool": { "$ref": "#/$defs/tool" },
+    "scan": { "$ref": "#/$defs/scan" },
+    "roots": { "type": "array", "items": { "$ref": "#/$defs/root" } },
+    "adapters": { "type": "array", "items": { "$ref": "#/$defs/adapter" } },
+    "summary": { "$ref": "#/$defs/summary" },
+    "inventory": { "type": "array", "items": { "$ref": "#/$defs/inventoryItem" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+  },
+  "$defs": {
+    "agent": { "enum": ["codex", "claude", "hermes"] },
+    "coverage": { "enum": ["complete", "partial", "unknown"] },
+    "severity": { "enum": ["info", "warning", "error"] },
+    "diagnosticCode": {
+      "enum": ["read_failed", "parse_error", "unsafe_reference", "limit_exceeded", "unsupported_value", "adapter_failed"]
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "agent-hygiene-cli" },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "durationMs", "platform", "projectRoot", "selectedWorkingDirectory", "selectedAgents", "limits", "coverage"],
+      "properties": {
+        "startedAt": { "type": "string", "minLength": 1 },
+        "durationMs": { "type": "number", "minimum": 0 },
+        "platform": { "type": "string", "minLength": 1 },
+        "projectRoot": { "type": "string", "minLength": 1 },
+        "selectedWorkingDirectory": { "type": "string", "minLength": 1 },
+        "selectedAgents": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/agent" } },
+        "limits": { "$ref": "#/$defs/limits" },
+        "coverage": { "$ref": "#/$defs/coverage" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxConcurrentFsOps", "maxRootsPerAdapter", "maxFilesPerRoot", "maxBytesPerRoot", "maxDirectoryDepth", "maxEntriesPerDirectory", "maxArtifactsPerAdapter", "maxFileBytes", "maxLinkHops", "maxParserDepth", "maxParserNodes", "maxYamlAliases"],
+      "properties": {
+        "maxConcurrentFsOps": { "type": "integer", "minimum": 1 },
+        "maxRootsPerAdapter": { "type": "integer", "minimum": 1 },
+        "maxFilesPerRoot": { "type": "integer", "minimum": 1 },
+        "maxBytesPerRoot": { "type": "integer", "minimum": 1 },
+        "maxDirectoryDepth": { "type": "integer", "minimum": 1 },
+        "maxEntriesPerDirectory": { "type": "integer", "minimum": 1 },
+        "maxArtifactsPerAdapter": { "type": "integer", "minimum": 1 },
+        "maxFileBytes": { "type": "integer", "minimum": 1 },
+        "maxLinkHops": { "type": "integer", "minimum": 1 },
+        "maxParserDepth": { "type": "integer", "minimum": 1 },
+        "maxParserNodes": { "type": "integer", "minimum": 1 },
+        "maxYamlAliases": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootId", "relativePath"],
+      "properties": {
+        "rootId": { "type": "string", "minLength": 1 },
+        "relativePath": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?![A-Za-z]:/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+        }
+      }
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "alias"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["project", "home", "agent-home", "managed", "external"] },
+        "alias": { "type": "string", "minLength": 1 }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent", "status", "coverage", "inventoryCount", "diagnosticCodes"],
+      "properties": {
+        "agent": { "$ref": "#/$defs/agent" },
+        "status": { "enum": ["not-detected", "complete", "partial", "failed"] },
+        "coverage": { "$ref": "#/$defs/coverage" },
+        "inventoryCount": { "type": "integer", "minimum": 0 },
+        "diagnosticCodes": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/diagnosticCode" } }
+      }
+    },
+    "severityCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["info", "warning", "error"],
+      "properties": {
+        "info": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inventoryCount", "findings", "diagnostics"],
+      "properties": {
+        "inventoryCount": { "type": "integer", "minimum": 0 },
+        "findings": { "$ref": "#/$defs/severityCounts" },
+        "diagnostics": { "$ref": "#/$defs/severityCounts" }
+      }
+    },
+    "skillFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "frontmatter", "nameUsable", "descriptionUsable"],
+      "properties": {
+        "type": { "const": "skill" },
+        "effectiveName": { "type": "string" },
+        "frontmatter": { "enum": ["valid", "malformed", "missing"] },
+        "nameUsable": { "type": "boolean" },
+        "descriptionUsable": { "type": "boolean" }
+      }
+    },
+    "mcpFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "transport", "credentialLikeFields"],
+      "properties": {
+        "type": { "const": "mcp" },
+        "transport": { "enum": ["stdio", "http", "sse", "unknown"] },
+        "endpointFingerprint": { "type": "string" },
+        "commandResolution": { "enum": ["resolved", "not-found", "unknown"] },
+        "credentialLikeFields": { "type": "array", "items": { "type": "string" } },
+        "packageInvocation": { "enum": ["exact", "unpinned", "not-applicable", "unknown"] },
+        "urlClass": { "enum": ["loopback", "tls", "plaintext-remote", "unknown"] }
+      }
+    },
+    "instructionFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "byteLength", "normalizedContentFingerprint", "condition"],
+      "properties": {
+        "type": { "const": "instruction" },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "normalizedContentFingerprint": { "type": "string", "minLength": 1 },
+        "condition": { "enum": ["global", "path-scoped", "on-demand", "unknown"] }
+      }
+    },
+    "configurationFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "format", "parseStatus", "precedence"],
+      "properties": {
+        "type": { "const": "configuration" },
+        "format": { "enum": ["json", "yaml", "toml"] },
+        "parseStatus": { "enum": ["valid", "invalid"] },
+        "precedence": { "type": "number" }
+      }
+    },
+    "extensionFacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "extensionKind", "activation"],
+      "properties": {
+        "type": { "const": "extension" },
+        "extensionKind": { "enum": ["rule", "plugin", "hook"] },
+        "activation": { "enum": ["active", "disabled", "candidate", "unknown"] }
+      }
+    },
+    "facts": {
+      "oneOf": [
+        { "$ref": "#/$defs/skillFacts" },
+        { "$ref": "#/$defs/mcpFacts" },
+        { "$ref": "#/$defs/instructionFacts" },
+        { "$ref": "#/$defs/configurationFacts" },
+        { "$ref": "#/$defs/extensionFacts" }
+      ]
+    },
+    "inventoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemId", "agent", "kind", "name", "source", "scope", "status", "loading", "facts"],
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "agent": { "$ref": "#/$defs/agent" },
+        "kind": { "enum": ["skill", "mcp", "instruction", "configuration", "rule", "plugin", "hook"] },
+        "name": { "type": "string" },
+        "source": { "$ref": "#/$defs/sourceRef" },
+        "scope": { "enum": ["user", "project", "managed", "plugin", "external"] },
+        "status": { "enum": ["active", "disabled", "shadowed", "candidate", "unresolved"] },
+        "loading": { "enum": ["always", "conditional", "lazy", "deferred", "unknown"] },
+        "fingerprint": { "type": "string" },
+        "estimatedTokens": { "type": "number", "minimum": 0 },
+        "facts": { "$ref": "#/$defs/facts" }
+      }
+    },
+    "sourceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "source"],
+      "properties": {
+        "type": { "const": "source" },
+        "source": { "$ref": "#/$defs/sourceRef" }
+      }
+    },
+    "fieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "source", "field"],
+      "properties": {
+        "type": { "const": "field" },
+        "source": { "$ref": "#/$defs/sourceRef" }
+      }
+    },
+    "metricEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "metric", "value"],
+      "properties": {
+        "type": { "const": "metric" },
+        "metric": { "enum": ["bytes", "estimatedTokens", "count"] },
+        "value": { "type": "number" },
+        "threshold": { "type": "number" }
+      }
+    },
+    "itemsEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "itemIds"],
+      "properties": {
+        "type": { "const": "items" },
+        "itemIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "oneOf": [
+        { "$ref": "#/$defs/sourceEvidence" },
+        { "$ref": "#/$defs/fieldEvidence" },
+        { "$ref": "#/$defs/metricEvidence" },
+        { "$ref": "#/$defs/itemsEvidence" }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "instanceId", "severity", "category", "title", "impact", "evidence", "recommendation", "manualSteps", "confidence", "actionable"],
+      "properties": {
+        "ruleId": { "type": "string", "minLength": 1 },
+        "instanceId": { "type": "string", "minLength": 1 },
+        "severity": { "$ref": "#/$defs/severity" },
+        "category": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "recommendation": { "type": "string", "minLength": 1 },
+        "manualSteps": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "actionable": { "type": "boolean" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "coverageImpact", "message"],
+      "properties": {
+        "code": { "$ref": "#/$defs/diagnosticCode" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "agent": { "$ref": "#/$defs/agent" },
+        "source": { "$ref": "#/$defs/sourceRef" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 },
+        "coverageImpact": { "enum": ["none", "partial", "unknown"] },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
