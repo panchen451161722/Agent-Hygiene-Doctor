@@ -1,1 +1,2 @@
-export const CODEX_INSTRUCTION_FILES = ["AGENTS.md", "AGENTS.override.md"] as const;
+export interface CodexInstructionCandidate { readonly path: string; readonly kind: "override" | "standard"; readonly active: boolean; }
+export const selectCodexInstructions = (candidates: readonly CodexInstructionCandidate[]): readonly CodexInstructionCandidate[] => Object.freeze([...candidates].filter((candidate) => candidate.active).sort((left, right) => (left.kind === "override" ? -1 : 1) - (right.kind === "override" ? -1 : 1) || left.path.localeCompare(right.path, "en")));
