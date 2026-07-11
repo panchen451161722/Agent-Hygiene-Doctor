@@ -34,7 +34,7 @@ export function runCli(
       return result.exitCode;
     }
 
-    return result.command === "doctor" ? runDoctor(result, runtime) : runSetup(result);
+    return result.command === "doctor" ? runDoctor(result, runtime) : runSetup(result, runtime);
   } catch (error: unknown) {
     if (!(error instanceof CliError)) {
       throw error;
@@ -53,3 +53,4 @@ if (
 ) {
   process.exitCode = runCli(process.argv.slice(2));
 }
+
