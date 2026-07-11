@@ -1,0 +1,1 @@
+export const verifyOwnedContent = (actual: string, expected: string): boolean => actual === expected;

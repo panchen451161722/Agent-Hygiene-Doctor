@@ -1,0 +1,2 @@
+export interface SetupManifest { readonly version: 1; readonly files: readonly string[]; }
+export const createManifest = (files: readonly string[]): SetupManifest => ({ version: 1, files: [...files] });

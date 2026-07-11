@@ -1,0 +1,1 @@
+export const setupDestinations = Object.freeze(["codex", "claude", "hermes"] as const);

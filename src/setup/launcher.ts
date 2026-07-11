@@ -1,0 +1,1 @@
+export const launcherSkillText = "Agent Hygiene launcher skill";

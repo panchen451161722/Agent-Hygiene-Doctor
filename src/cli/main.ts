@@ -6,6 +6,8 @@ import {
   formatCliError,
   parseCliOptions,
 } from "./options.js";
+import { runDoctor } from "./doctor.js";
+import { runSetup } from "./setup.js";
 
 export type CliParser = typeof parseCliOptions;
 
@@ -32,7 +34,7 @@ export function runCli(
       return result.exitCode;
     }
 
-    return 0;
+    return result.command === "doctor" ? runDoctor(result, runtime) : runSetup(result);
   } catch (error: unknown) {
     if (!(error instanceof CliError)) {
       throw error;
