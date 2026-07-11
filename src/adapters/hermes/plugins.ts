@@ -1,1 +1,2 @@
-export const HERMES_PLUGIN_DIRECTORIES = ["plugins"] as const;
+export interface HermesPluginProjection { readonly name: string; readonly activation: "active" | "disabled" | "unknown"; readonly soul?: string; }
+export const projectHermesPlugin = (input: { name: string; enabled?: boolean; soul?: string; projectEnabled?: boolean }): HermesPluginProjection => Object.freeze({ name: input.name, activation: input.enabled === false || input.projectEnabled === false ? "disabled" : input.enabled === true ? "active" : "unknown", ...(typeof input.soul === "string" ? { soul: input.soul } : {}) });

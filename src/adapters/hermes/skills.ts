@@ -1,1 +1,2 @@
-export const HERMES_SKILL_DIRECTORIES = ["skills"] as const;
+export interface HermesSkillCandidate { readonly name: string; readonly root: "local" | "external"; readonly enabled: boolean; }
+export const selectHermesSkills = (skills: readonly HermesSkillCandidate[]): readonly HermesSkillCandidate[] => Object.freeze([...skills].filter((skill) => skill.enabled).sort((left, right) => left.name.localeCompare(right.name, "en") || (left.root === "local" ? -1 : 1)));
