@@ -1,0 +1,1 @@
+export const CLAUDE_PLUGIN_DIRECTORIES = ["plugins"] as const;

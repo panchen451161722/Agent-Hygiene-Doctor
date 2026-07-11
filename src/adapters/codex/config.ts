@@ -1,0 +1,1 @@
+export const CODEX_CONFIG_FILES = ["config.toml", "hooks.json"] as const;

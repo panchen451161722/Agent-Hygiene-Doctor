@@ -1,0 +1,1 @@
+export const CLAUDE_SETTINGS_FILES = ["settings.json", "managed-settings.json"] as const;

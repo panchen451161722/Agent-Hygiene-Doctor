@@ -1,0 +1,1 @@
+export const HERMES_SKILL_DIRECTORIES = ["skills"] as const;

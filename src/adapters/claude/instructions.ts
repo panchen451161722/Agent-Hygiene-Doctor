@@ -1,0 +1,1 @@
+export const CLAUDE_INSTRUCTION_FILES = ["CLAUDE.md", "CLAUDE.local.md"] as const;

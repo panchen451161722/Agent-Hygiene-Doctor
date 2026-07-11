@@ -1,0 +1,1 @@
+export const HERMES_CONFIG_FILES = ["config.yaml"] as const;

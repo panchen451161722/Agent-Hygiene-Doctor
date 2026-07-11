@@ -1,0 +1,1 @@
+export const HERMES_PLUGIN_DIRECTORIES = ["plugins"] as const;
