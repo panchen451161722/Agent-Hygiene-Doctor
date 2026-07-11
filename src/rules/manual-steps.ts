@@ -1,0 +1,1 @@
+export const manualStepsFor = (ruleId: string): readonly string[] => ruleId === "config-invalid" ? ["Open the referenced configuration file.", "Fix syntax errors and rerun doctor."] : ruleId === "duplicate-active" ? ["Review active artifacts with the same effective name."] : [];
