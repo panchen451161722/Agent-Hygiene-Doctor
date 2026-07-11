@@ -13,6 +13,7 @@ const WINDOWS_ABSOLUTE = /^[A-Za-z]:\//;
 
 export const assertValidSourceRef = (source: SourceRef): void => {
   const path = source.relativePath;
+  if (path === ".") return;
   const segments = path.split("/");
   if (
     source.rootId.length === 0 ||

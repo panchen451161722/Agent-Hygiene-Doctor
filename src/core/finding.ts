@@ -2,10 +2,10 @@ import type { Severity } from "./diagnostic.js";
 import type { SourceRef } from "./source-ref.js";
 
 export type Evidence =
-  | { readonly type: "source"; readonly source: SourceRef }
-  | { readonly type: "field"; readonly source: SourceRef; readonly field: string }
-  | { readonly type: "metric"; readonly metric: "bytes" | "estimatedTokens" | "count"; readonly value: number; readonly threshold?: number }
-  | { readonly type: "items"; readonly itemIds: readonly string[] };
+  | { readonly kind: "source"; readonly source: SourceRef }
+  | { readonly kind: "field"; readonly source: SourceRef; readonly field: string }
+  | { readonly kind: "metric"; readonly metric: "bytes" | "estimatedTokens" | "count"; readonly value: number; readonly threshold?: number }
+  | { readonly kind: "items"; readonly itemIds: readonly string[] };
 
 export interface Finding {
   readonly ruleId: string;

@@ -11,8 +11,8 @@ const makeReport = () => buildReport({
     startedAt: "2026-07-10T00:00:00.000Z",
     durationMs: 1,
     platform: "linux",
-    projectRoot: "/repo",
-    selectedWorkingDirectory: "/repo",
+    projectRoot: { rootId: "project", relativePath: "." },
+    selectedWorkingDirectory: { rootId: "project", relativePath: "." },
     selectedAgents: ["codex"],
     limits: undefined,
     coverage: "complete",
@@ -33,7 +33,7 @@ const makeReport = () => buildReport({
   }],
   findings: [{
     ruleId: "AH001", instanceId: "instance", severity: "warning", category: "hygiene", title: "Title", impact: "Impact",
-    evidence: [{ type: "metric", metric: "bytes", value: 10, threshold: 5 }], recommendation: "Fix", manualSteps: [], confidence: "high", actionable: true,
+    evidence: [{ kind: "metric", metric: "bytes", value: 10, threshold: 5 }], recommendation: "Fix", manualSteps: [], confidence: "high", actionable: true,
   }],
   diagnostics: [{ code: "read_failed", severity: "warning", agent: "codex", source: { rootId: "project", relativePath: "bad" }, coverageImpact: "partial", message: "A source could not be read." }],
 });
@@ -76,9 +76,66 @@ describe("report-v1 JSON schema", () => {
     const validate = new Ajv2020({ allErrors: true }).compile(schema);
     const report = clone(makeReport()) as unknown as MutableReportShape;
     report.findings[0].evidence[0] = {
-      type: "source", source: { rootId: "project", relativePath: "file" }, field: "name",
+      kind: "source", source: { rootId: "project", relativePath: "file" }, field: "name",
     } as unknown as { surprise?: boolean };
     expect(validate(report)).toBe(false);
+  });
+
+  it("enforces platform, SourceRef scan roots, and SHA-256 IDs", async () => {
+    const schema = JSON.parse(await readFile(new URL("../../schema/report-v1.schema.json", import.meta.url), "utf8"));
+    const validate = new Ajv2020({ allErrors: true }).compile(schema);
+    const valid = clone(makeReport()) as unknown as MutableReportShape & {
+      scan: { platform: string; projectRoot: { relativePath: string } };
+      inventory: [{ itemId: string; facts: { surprise?: boolean } }];
+      findings: [{ instanceId: string; evidence: [{ surprise?: boolean }] }];
+    };
+    valid.scan.projectRoot.relativePath = ".";
+    expect(validate(valid), JSON.stringify(validate.errors)).toBe(true);
+
+    for (const mutate of [
+      (report: typeof valid) => { report.scan.platform = "android"; },
+      (report: typeof valid) => { report.scan.projectRoot.relativePath = "../bad"; },
+      (report: typeof valid) => { report.inventory[0].itemId = "not-a-hash"; },
+      (report: typeof valid) => { report.findings[0].instanceId = "not-a-hash"; },
+    ]) {
+      const report = clone(valid);
+      mutate(report);
+      expect(validate(report)).toBe(false);
+    }
+  });
+
+  it("accepts exact field evidence and rejects type as a discriminant", async () => {
+    const schema = JSON.parse(await readFile(new URL("../../schema/report-v1.schema.json", import.meta.url), "utf8"));
+    const validate = new Ajv2020({ allErrors: true }).compile(schema);
+    const report = clone(makeReport()) as unknown as MutableReportShape;
+    report.findings[0].evidence[0] = {
+      kind: "field", source: { rootId: "project", relativePath: "file" }, field: "name",
+    } as unknown as { surprise?: boolean };
+    expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
+
+    report.findings[0].evidence[0] = {
+      type: "field", source: { rootId: "project", relativePath: "file" }, field: "name",
+    } as unknown as { surprise?: boolean };
+    expect(validate(report)).toBe(false);
+  });
+
+  it("keeps facts and diagnostics isomorphic with runtime validation", async () => {
+    const schema = JSON.parse(await readFile(new URL("../../schema/report-v1.schema.json", import.meta.url), "utf8"));
+    const validate = new Ajv2020({ allErrors: true }).compile(schema);
+    const factsMismatch = clone(makeReport()) as unknown as MutableReportShape & {
+      inventory: [{ kind: string; facts: { surprise?: boolean } }];
+    };
+    factsMismatch.inventory[0].kind = "mcp";
+    expect(validate(factsMismatch)).toBe(false);
+
+    const badMessage = clone(makeReport()) as unknown as MutableReportShape & {
+      diagnostics: [{ message: string; stack?: string }];
+    };
+    badMessage.diagnostics[0].message = "arbitrary";
+    expect(validate(badMessage)).toBe(false);
+    badMessage.diagnostics[0].message = "A source could not be read.";
+    badMessage.diagnostics[0].stack = "secret";
+    expect(validate(badMessage)).toBe(false);
   });
 
   it("never accepts a raw Error diagnostic", async () => {

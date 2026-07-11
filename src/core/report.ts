@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 
 import { compareAgents, type AgentId } from "./agent.js";
 import { aggregateCoverage, type Coverage } from "./coverage.js";
-import { DIAGNOSTIC_CODES, isDiagnostic, type Diagnostic, type DiagnosticCode, type Severity } from "./diagnostic.js";
+import { DIAGNOSTIC_CODES, type Diagnostic, type DiagnosticCode, type Severity } from "./diagnostic.js";
 import type { Evidence, Finding } from "./finding.js";
 import type { InventoryItem } from "./inventory.js";
 import { SCAN_LIMITS_V1, type ScanLimitsV1 } from "./limits.js";
 import { assertValidSourceRef, compareSourceRefs, type RootDescriptor, type SourceRef } from "./source-ref.js";
+import { validateReportInput } from "./report-validation.js";
 
 export interface AdapterState {
   readonly agent: AgentId;
@@ -34,9 +35,9 @@ export interface ReportV1 {
   readonly scan: {
     readonly startedAt: string;
     readonly durationMs: number;
-    readonly platform: string;
-    readonly projectRoot: string;
-    readonly selectedWorkingDirectory: string;
+    readonly platform: "win32" | "darwin" | "linux";
+    readonly projectRoot: SourceRef;
+    readonly selectedWorkingDirectory: SourceRef;
     readonly selectedAgents: readonly AgentId[];
     readonly limits: ScanLimitsV1;
     readonly coverage: Coverage;
@@ -76,7 +77,7 @@ export const createItemId = (
 };
 
 const evidenceAnchor = (evidence: Evidence): string => {
-  switch (evidence.type) {
+  switch (evidence.kind) {
     case "source":
       return JSON.stringify(["source", evidence.source.rootId, evidence.source.relativePath]);
     case "field":
@@ -128,7 +129,7 @@ const validateSources = (
   for (const item of inventory) assertValidSourceRef(item.source);
   for (const finding of findings) {
     for (const evidence of finding.evidence) {
-      if (evidence.type === "source" || evidence.type === "field") assertValidSourceRef(evidence.source);
+      if (evidence.kind === "source" || evidence.kind === "field") assertValidSourceRef(evidence.source);
     }
   }
   for (const diagnostic of diagnostics) {
@@ -147,27 +148,46 @@ const buildAdapters = (
   ...adapter,
   inventoryCount: inventory.filter((item) => item.agent === adapter.agent).length,
   diagnosticCodes: [...new Set([
-    ...adapter.diagnosticCodes,
     ...diagnostics.filter((item) => item.agent === adapter.agent).map((item) => item.code),
   ])].sort((left, right) => DIAGNOSTIC_CODES.indexOf(left) - DIAGNOSTIC_CODES.indexOf(right)),
 })).sort((left, right) => compareAgents(left.agent, right.agent));
 
 const deepFreeze = <T>(value: T): Readonly<T> => {
-  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
-  Object.freeze(value);
+  if (typeof value !== "object" || value === null) return value;
   for (const child of Object.values(value)) deepFreeze(child);
+  Object.freeze(value);
   return value;
 };
 
 export const buildReport = (input: BuildReportInput): ReportV1 => {
-  for (const diagnostic of input.diagnostics as readonly unknown[]) {
-    if (!isDiagnostic(diagnostic)) {
-      throw new Error("AH-REPORT-INVALID-DIAGNOSTIC: diagnostics must use the closed diagnostic catalog");
-    }
-  }
+  validateReportInput(input);
 
-  const inventory = [...input.inventory].sort(compareInventory);
-  const findings = [...input.findings].sort(compareFindings);
+  const itemIdMap = new Map<string, string>();
+  const inventory = input.inventory.map((item) => {
+    const effectiveName = item.facts.type === "skill" && item.facts.effectiveName !== undefined
+      ? item.facts.effectiveName
+      : item.name;
+    const itemId = createItemId(item.agent, item.kind, effectiveName, item.source);
+    itemIdMap.set(item.itemId, itemId);
+    return { ...item, itemId };
+  });
+  if (new Set(inventory.map((item) => item.itemId)).size !== inventory.length) {
+    throw new Error("AH-REPORT-DUPLICATE-ID: duplicate generated item id");
+  }
+  inventory.sort(compareInventory);
+
+  const findings = input.findings.map((finding) => {
+    const evidence = finding.evidence.map((item): Evidence =>
+      item.kind === "items"
+        ? { ...item, itemIds: item.itemIds.map((id) => itemIdMap.get(id) as string) }
+        : item);
+    return { ...finding, evidence, instanceId: createFindingInstanceId(finding.ruleId, evidence) };
+  });
+  if (new Set(findings.map((finding) => finding.instanceId)).size !== findings.length) {
+    throw new Error("AH-REPORT-DUPLICATE-ID: duplicate generated finding id");
+  }
+  findings.sort(compareFindings);
+
   const diagnostics = [...input.diagnostics].sort(compareDiagnostics);
   validateSources(inventory, findings, diagnostics);
   const adapters = buildAdapters(input.adapters, inventory, diagnostics);
@@ -183,8 +203,8 @@ export const buildReport = (input: BuildReportInput): ReportV1 => {
       startedAt: input.scan.startedAt,
       durationMs: input.scan.durationMs,
       platform: input.scan.platform,
-      projectRoot: input.scan.projectRoot,
-      selectedWorkingDirectory: input.scan.selectedWorkingDirectory,
+      projectRoot: { ...input.scan.projectRoot },
+      selectedWorkingDirectory: { ...input.scan.selectedWorkingDirectory },
       selectedAgents: [...input.scan.selectedAgents].sort(compareAgents),
       limits: { ...(input.scan.limits ?? SCAN_LIMITS_V1) },
       coverage,
