@@ -15,3 +15,5 @@ export const parseToml = <T = unknown>(input: ParserInput, options: ParserOption
   if (!walkValue(value, decoded.limits)) return { ok: false, diagnostic: limitDiagnostic(options) };
   return { ok: true, value: value as T };
 };
+
+export const parseTOML = parseToml;

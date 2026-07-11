@@ -13,14 +13,18 @@ const redactValue = (value: unknown, key: string | undefined, seen: WeakSet<obje
   if (typeof value !== "object" || value === null) return value;
   if (seen.has(value)) return "[REDACTED_CYCLE]";
   seen.add(value);
-  if (Array.isArray(value)) return value.map((item) => redactValue(item, undefined, seen));
+  if (Array.isArray(value)) {
+    const output = value.map((item) => redactValue(item, undefined, seen));
+    seen.delete(value);
+    return output;
+  }
   const output: Record<string, unknown> = {};
   for (const [childKey, childValue] of Object.entries(value)) {
     output[childKey] = SECRET_KEY.test(childKey) ? "[REDACTED]" : redactValue(childValue, childKey, seen);
   }
+  seen.delete(value);
   return output;
 };
-
 /** Final defense-in-depth pass; parsers remain the primary privacy boundary. */
 export const redactOutput = <T>(value: T): T => redactValue(value, undefined, new WeakSet<object>()) as T;
 
@@ -42,6 +46,7 @@ export const safeFieldName = (value: unknown): string | undefined =>
 export const safePathReference = (value: unknown): string | undefined => {
   if (typeof value !== "string" || value.length === 0 || value.includes("\\") || value.includes("\0")) return undefined;
   const normalized = value.replace(/^\.\//, "");
+  if (normalized === ".") return ".";
   if (normalized.startsWith("/") || /^[A-Za-z]:/.test(normalized)) return undefined;
   const segments = normalized.split("/");
   if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) return undefined;

@@ -19,12 +19,16 @@ describe("sanitized bounded parsers", () => {
 
   it("rejects invalid UTF-8 and oversized input", () => {
     expect(parseJson(new Uint8Array([0xff, 0xfe]), { source })).toMatchObject({ ok: false, diagnostic: { code: "parse_error" } });
-    expect(parseJson("{}", { source, limits: { maxBytes: 1 } })).toMatchObject({ ok: false, diagnostic: { code: "parse_error" } });
+    expect(parseJson("{}", { source, limits: { maxBytes: 1 } })).toMatchObject({ ok: false, diagnostic: { code: "limit_exceeded" } });
   });
 
   it("enforces JSON node and depth limits", () => {
     expect(parseJson("{\"a\":{\"b\":1}}", { source, limits: { maxDepth: 1 } })).toMatchObject({ ok: false, diagnostic: { code: "limit_exceeded" } });
     expect(parseJson("[1,2,3]", { source, limits: { maxNodes: 2 } })).toMatchObject({ ok: false, diagnostic: { code: "limit_exceeded" } });
+  });
+
+  it("never raises parser safety limits above defaults", () => {
+    expect(parseJson("{}", { source, limits: { maxBytes: Number.MAX_SAFE_INTEGER } })).toMatchObject({ ok: true });
   });
 
   it("parses TOML without leaking parser errors", () => {

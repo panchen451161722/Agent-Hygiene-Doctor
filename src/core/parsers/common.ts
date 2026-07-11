@@ -11,7 +11,7 @@ export const decodeUtf8 = (input: ParserInput, options?: ParserOptions):
   | { readonly ok: false; readonly diagnostic: Diagnostic } => {
   const limits = resolveParserLimits(options);
   const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
-  if (bytes.byteLength > limits.maxBytes) return { ok: false, diagnostic: parserDiagnostic(options, "input exceeds parser size limit") };
+  if (bytes.byteLength > limits.maxBytes) return { ok: false, diagnostic: limitDiagnostic(options) };
   try {
     let text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     if (text.codePointAt(0) === 0xfeff) text = text.slice(1);
