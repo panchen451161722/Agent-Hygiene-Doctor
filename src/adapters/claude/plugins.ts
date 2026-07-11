@@ -1,1 +1,2 @@
-export const CLAUDE_PLUGIN_DIRECTORIES = ["plugins"] as const;
+export interface ClaudePluginProjection { readonly name: string; readonly activation: "active" | "disabled" | "candidate" | "unknown"; readonly components: readonly string[]; }
+export const projectClaudePlugin = (input: { name: string; enabled?: boolean; installed?: boolean; components?: readonly string[] }): ClaudePluginProjection => Object.freeze({ name: input.name, activation: input.enabled === false ? "disabled" : input.installed === true ? "active" : "candidate", components: Object.freeze([...(input.components ?? [])].filter((component) => component !== "data").sort()) });

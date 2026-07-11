@@ -1,1 +1,2 @@
-export const CLAUDE_INSTRUCTION_FILES = ["CLAUDE.md", "CLAUDE.local.md"] as const;
+export interface ClaudeInstructionImport { readonly path: string; readonly depth: number; readonly approved: boolean; }
+export const selectClaudeImports = (imports: readonly ClaudeInstructionImport[], maxDepth = 5): readonly ClaudeInstructionImport[] => Object.freeze([...imports].filter((entry) => entry.approved && entry.depth <= maxDepth).sort((left, right) => left.depth - right.depth || left.path.localeCompare(right.path, "en")));
