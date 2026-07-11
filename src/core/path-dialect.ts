@@ -51,9 +51,8 @@ class NodePathDialect implements PathDialect {
         throw new UnsafePathError("drive-relative paths are forbidden");
       }
       const segments = normalized.split(/[\\/]/u);
-      if (segments.some((segment) => segment.includes(":"))) {
-        const first = segments[0] ?? "";
-        if (!/^[A-Za-z]:$/u.test(first)) throw new UnsafePathError("alternate data streams are forbidden");
+      if (segments.slice(1).some((segment) => segment.includes(":"))) {
+        throw new UnsafePathError("alternate data streams are forbidden");
       }
       if (this.path.isAbsolute(normalized) && normalized.startsWith("\\\\")) {
         const parts = normalized.split("\\").filter(Boolean);
