@@ -1,0 +1,5 @@
+import type { InventoryItem, McpFacts } from "../core/inventory.js";
+import { credentialLikeFieldNames, fingerprintInput, fingerprintMcp, type McpFingerprintInput } from "../rules/mcp-fingerprint.js";
+import { item, type InspectorContext } from "./common.js";
+export type McpInput = McpFingerprintInput & { readonly commandResolution?: McpFacts["commandResolution"]; readonly urlClass?: McpFacts["urlClass"]; };
+export const inspectMcp = (input: McpInput, context: InspectorContext): InventoryItem => { const fp = fingerprintInput(input); const credentialLikeFields = credentialLikeFieldNames("env" in input ? input.env : undefined); const facts: McpFacts = { type: "mcp", transport: input.transport, endpointFingerprint: fingerprintMcp(input), ...(input.transport === "stdio" && input.commandResolution ? { commandResolution: input.commandResolution } : {}), credentialLikeFields, ...(input.transport === "stdio" ? {} : input.urlClass ? { urlClass: input.urlClass } : {}) }; const name = typeof fp.command === "string" ? fp.command : context.source.relativePath; return item(context, "mcp", name, facts, facts.endpointFingerprint); };
