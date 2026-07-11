@@ -29,10 +29,10 @@ export const parserDiagnostic = (options: ParserOptions | undefined, _reason: st
   message: DIAGNOSTIC_MESSAGES.parse_error,
 });
 
-export const limitDiagnostic = (options: ParserOptions): Diagnostic => ({
+export const limitDiagnostic = (options?: ParserOptions): Diagnostic => ({
   code: "limit_exceeded",
   severity: "warning",
-  ...(options.source === undefined ? {} : { source: options.source }),
+  ...(options?.source === undefined ? {} : { source: options.source }),
   coverageImpact: "partial",
   message: DIAGNOSTIC_MESSAGES.limit_exceeded,
 });
