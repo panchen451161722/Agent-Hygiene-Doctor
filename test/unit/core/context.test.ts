@@ -32,4 +32,15 @@ describe("createScanContext", () => {
     backend.calls++;
     expect(backend.calls).toBe(1);
   });
+
+  it("rejects a dialect that does not match the declared platform", async () => {
+    await expect(createScanContext({ platform: "win32", paths: posixDialect, selectedWorkingDirectory: "/repo", environment: { USERPROFILE: "/home/alice" }, fs: { lstat: async () => null }, toolVersion: "0.1.0" })).rejects.toThrow();
+  });
+
+  it("requires an explicit project root to contain the selected directory", async () => {
+    const base = { platform: "linux" as const, paths: posixDialect, selectedWorkingDirectory: "/repo/sub", environment: { HOME: "/home/alice" }, fs: { lstat: async () => null }, toolVersion: "0.1.0" };
+    await expect(createScanContext({ ...base, projectRoot: "/other" })).rejects.toThrow();
+    const context = await createScanContext({ ...base, projectRoot: "/repo" });
+    expect(context.genericProjectRoot).toBe("/repo");
+  });
 });

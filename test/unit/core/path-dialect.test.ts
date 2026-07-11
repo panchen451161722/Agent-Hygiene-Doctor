@@ -24,4 +24,16 @@ describe("PathDialect", () => {
     expect(win32Dialect.contains("C:\\agent", "C:\\agent\\..\\escape")).toBe(false);
     expect(() => win32Dialect.relative("C:\\agent", "C:\\escape")).toThrow();
   });
+
+  it("rejects relative resolve inputs", () => {
+    expect(() => posixDialect.resolve("relative")).toThrow();
+    expect(() => win32Dialect.resolve("/agent", "nested")).toThrow();
+    expect(() => win32Dialect.resolve("C:\\agent", "nested")).toThrow();
+    expect(() => win32Dialect.resolve("C:\\agent", "D:escape")).toThrow();
+  });
+
+  it("resolves fully-qualified absolute inputs deterministically", () => {
+    expect(posixDialect.resolve("/agent", "/agent/file")).toBe("/agent/file");
+    expect(win32Dialect.resolve("C:\\agent", "C:\\agent\\file")).toBe("C:\\agent\\file");
+  });
 });

@@ -66,6 +66,10 @@ const defaultClock: ScanClock = Object.freeze({ now: () => new Date() });
 export const createScanContext = async (options: CreateScanContextOptions): Promise<ScanContext> => {
   const paths = options.paths ?? createPathDialect(options.platform);
   const selectedWorkingDirectory = paths.normalize(options.selectedWorkingDirectory) as AbsolutePath;
+  const expectedDialectPlatform = options.platform === "win32" ? "win32" : "posix";
+  if (paths.platform !== expectedDialectPlatform) {
+    throw new Error("AH-INVALID-PATH-DIALECT: dialect does not match the scan platform");
+  }
   const environment = snapshotEnvironment(options.environment);
   const homeValue = options.platform === "win32"
     ? environment.USERPROFILE ?? environment.HOME
@@ -75,6 +79,9 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
   const genericProjectRoot = options.projectRoot === undefined
     ? await findGenericProjectRoot(selectedWorkingDirectory, paths, options.fs)
     : paths.normalize(options.projectRoot);
+  if (!paths.contains(genericProjectRoot, selectedWorkingDirectory)) {
+    throw new Error("AH-INVALID-PROJECT-ROOT: project root must contain the selected working directory");
+  }
   const roots = options.roots ?? RootRegistry.create(paths, [
     { id: "project", kind: "project", alias: "<project>", absolutePath: genericProjectRoot },
     { id: "home", kind: "home", alias: "~", absolutePath: userHome },
