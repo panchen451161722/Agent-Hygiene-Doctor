@@ -2,6 +2,7 @@ import { SCAN_LIMITS_V1, type ScanLimitsV1 } from "./limits.js";
 import { createPathDialect, type PathDialect } from "./path-dialect.js";
 import { findGenericProjectRoot, type MetadataFileSystem } from "./project-root.js";
 import { RootRegistry } from "./root-registry.js";
+import { ScanIoSemaphore } from "./fs/semaphore.js";
 
 export const ALLOWLISTED_ENVIRONMENT_KEYS = [
   "HOME", "USERPROFILE", "LOCALAPPDATA", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "HERMES_HOME",
@@ -29,6 +30,7 @@ export interface ScanContext {
   readonly environment: AllowlistedEnvironment;
   readonly roots: RootRegistry;
   readonly fs: ScanContextFileSystem;
+  readonly ioSemaphore: ScanIoSemaphore;
   readonly limits: Readonly<ScanLimitsV1>;
   readonly clock: ScanClock;
   readonly toolVersion: string;
@@ -45,6 +47,7 @@ export interface CreateScanContextOptions {
   readonly toolVersion: string;
   readonly limits?: ScanLimitsV1;
   readonly roots?: RootRegistry;
+  readonly ioSemaphore?: ScanIoSemaphore;
 }
 
 const deepFreeze = <T>(value: T): Readonly<T> => {
@@ -95,6 +98,7 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
     environment,
     roots,
     fs: options.fs,
+    ioSemaphore: options.ioSemaphore ?? new ScanIoSemaphore((options.limits ?? SCAN_LIMITS_V1).maxConcurrentFsOps),
     limits: deepFreeze({ ...(options.limits ?? SCAN_LIMITS_V1) }) as Readonly<ScanLimitsV1>,
     clock: options.clock ?? defaultClock,
     toolVersion: options.toolVersion,
