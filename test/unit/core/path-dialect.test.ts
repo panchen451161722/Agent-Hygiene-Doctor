@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { posixDialect, win32Dialect } from "../../../src/core/path-dialect.js";
 
 describe("PathDialect", () => {
@@ -35,5 +35,14 @@ describe("PathDialect", () => {
   it("resolves fully-qualified absolute inputs deterministically", () => {
     expect(posixDialect.resolve("/agent", "/agent/file")).toBe("/agent/file");
     expect(win32Dialect.resolve("C:\\agent", "C:\\agent\\file")).toBe("C:\\agent\\file");
+  });
+
+  it("validates resolve inputs before consulting host cwd", () => {
+    const cwd = vi.spyOn(process, "cwd").mockImplementation(() => { throw new Error("CWD_TOUCHED"); });
+    try {
+      expect(() => posixDialect.resolve("relative")).toThrow(/absolute paths are required/);
+    } finally {
+      cwd.mockRestore();
+    }
   });
 });

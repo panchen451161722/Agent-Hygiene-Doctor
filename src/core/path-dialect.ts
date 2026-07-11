@@ -76,8 +76,8 @@ class NodePathDialect implements PathDialect {
   }
 
   resolve(...values: string[]): string {
-    const result = this.path.resolve(...values);
     values.forEach((value) => this.assertSafe(value));
+    const result = this.path.resolve(...values);
     this.assertSafe(result);
     return result;
   }
