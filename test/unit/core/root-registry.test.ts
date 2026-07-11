@@ -30,4 +30,18 @@ describe("RootRegistry", () => {
     expect(roots.descriptors().map((root) => root.id)).toEqual(["external-1", "external-2"]);
     expect(roots.descriptors().map((root) => root.alias)).toEqual(["external-1", "external-2"]);
   });
+
+  it("sorts canonical external paths and rejects canonical duplicates", () => {
+    const roots = RootRegistry.forTest(win32Dialect, [
+      { kind: "external", alias: "external", absolutePath: "C:\\z\\." },
+      { kind: "external", alias: "external", absolutePath: "C:\\a\\child\\.." },
+    ]);
+    expect(roots.descriptors().map((root) => root.id)).toEqual(["external-1", "external-2"]);
+    expect(roots.toSourceRef("external-1", "C:\\a\\file")).toEqual({ rootId: "external-1", relativePath: "file" });
+    expect(roots.toSourceRef("external-2", "C:\\z\\file")).toEqual({ rootId: "external-2", relativePath: "file" });
+    expect(() => RootRegistry.forTest(win32Dialect, [
+      { kind: "external", alias: "external", absolutePath: "C:\\a" },
+      { kind: "external", alias: "external", absolutePath: "C:\\a\\." },
+    ])).toThrow(/duplicate/i);
+  });
 });

@@ -92,5 +92,5 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
     clock: options.clock ?? defaultClock,
     toolVersion: options.toolVersion,
   };
-  return deepFreeze(context) as ScanContext;
+  return Object.freeze(context) as ScanContext;
 };

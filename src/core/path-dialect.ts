@@ -50,6 +50,9 @@ class NodePathDialect implements PathDialect {
       if (/^[A-Za-z]:[^\\/]/u.test(normalized)) {
         throw new UnsafePathError("drive-relative paths are forbidden");
       }
+      if (!/^(?:[A-Za-z]:\\|\\\\[^\\]+\\[^\\]+)/u.test(normalized)) {
+        throw new UnsafePathError("fully qualified Windows paths are required");
+      }
       const segments = normalized.split(/[\\/]/u);
       if (segments.slice(1).some((segment) => segment.includes(":"))) {
         throw new UnsafePathError("alternate data streams are forbidden");
@@ -94,10 +97,11 @@ class NodePathDialect implements PathDialect {
     this.assertSafe(to);
     const relative = this.path.relative(from, to);
     if (relative === "") return ".";
-    if (relative.startsWith("..") || this.path.isAbsolute(relative)) {
+    const slashRelative = relative.replaceAll("\\", "/");
+    if (slashRelative === ".." || slashRelative.startsWith("../") || this.path.isAbsolute(relative)) {
       throw new UnsafePathError("path is outside the root");
     }
-    return relative.replaceAll("\\", "/");
+    return slashRelative;
   }
 
   contains(root: string, candidate: string): boolean {
@@ -110,7 +114,8 @@ class NodePathDialect implements PathDialect {
       const candidateKey = this.comparisonKey(candidateNormalized);
       if (this.rootKey(rootKey) !== this.rootKey(candidateKey)) return false;
       const relative = this.path.relative(rootNormalized, candidateNormalized);
-      return relative === "" || (!relative.startsWith("..") && !this.path.isAbsolute(relative));
+      const slashRelative = relative.replaceAll("\\", "/");
+      return slashRelative === "" || (slashRelative !== ".." && !slashRelative.startsWith("../") && !this.path.isAbsolute(relative));
     } catch (error) {
       if (error instanceof UnsafePathError) return false;
       throw error;

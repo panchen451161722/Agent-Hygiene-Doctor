@@ -18,14 +18,11 @@ export class RootRegistry {
   private readonly roots: ReadonlyMap<string, RegisteredRoot>;
 
   private constructor(private readonly dialect: PathDialect, registrations: readonly RootRegistration[]) {
-    const external = registrations.filter((root) => (root.kind ?? "external") === "external");
-    const externalSorted = [...external].sort((left, right) => dialect.compare(left.absolutePath, right.absolutePath));
-    let externalOrdinal = 0;
     const values = registrations.map((registration) => {
       const kind = registration.kind ?? "external";
       const isExternal = kind === "external";
-      const id = registration.id ?? (isExternal ? `external-${++externalOrdinal}` : kind);
-      const alias = registration.alias ?? (isExternal ? id : id);
+      const id = registration.id ?? (isExternal ? "" : kind);
+      const alias = registration.alias ?? id;
       return {
         id,
         kind,
@@ -33,21 +30,19 @@ export class RootRegistry {
         absolutePath: dialect.normalize(registration.absolutePath),
       } satisfies RegisteredRoot;
     });
-    if (externalSorted.length > 0) {
-      const sortedIds = new Map(externalSorted.map((root, index) => [
-        root.absolutePath,
-        `external-${index + 1}`,
-      ]));
-      for (const value of values) {
-        if (value.kind === "external" && value.id.startsWith("external-")) {
-          const externalId = sortedIds.get(value.absolutePath);
-          if (externalId !== undefined) {
-            (value as { id: string }).id = externalId;
-            (value as { alias: string }).alias = externalId;
-          }
-        }
+    const canonicalExternal = values.filter((value) => value.kind === "external")
+      .sort((left, right) => dialect.compare(left.absolutePath, right.absolutePath));
+    for (let index = 1; index < canonicalExternal.length; index += 1) {
+      if (dialect.compare(canonicalExternal[index - 1]!.absolutePath, canonicalExternal[index]!.absolutePath) === 0) {
+        throw new Error("AH-DUPLICATE-ROOT: canonical external roots must be unique");
       }
     }
+    const externalValues = canonicalExternal.filter((value) => value.id === "");
+    externalValues.forEach((value, index) => {
+      const id = `external-${index + 1}`;
+      (value as { id: string }).id = id;
+      (value as { alias: string }).alias = id;
+    });
     if (new Set(values.map((value) => value.id)).size !== values.length) {
       throw new Error("AH-DUPLICATE-ROOT: root ids must be unique");
     }
