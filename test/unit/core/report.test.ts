@@ -203,7 +203,7 @@ describe("report contract", () => {
   });
 
   it("generates stable lowercase SHA-256 item and finding IDs", () => {
-    expect(createItemId("codex", "skill", "  My   Skill ", source("skills/My/SKILL.md"))).toBe(
+    expect(createItemId("codex", "skill", "  My Skill ", source("skills/My/SKILL.md"))).toBe(
       "cc4d5777346a462e4e0dc0682e32e36e2943710d0c184d384402246f21f45cc2",
     );
     const evidence = [
@@ -327,5 +327,27 @@ describe("report contract", () => {
     const input = baseInput();
     mutate(input);
     expect(() => buildReport(input)).toThrowError(/AH-REPORT-/);
+  });
+
+  it("rejects dot SourceRefs with an empty rootId", () => {
+    const input = baseInput();
+    input.scan.projectRoot = source(".", "");
+    expect(() => buildReport(input)).toThrowError(/AH-REPORT-INVALID-SOURCE-REF/);
+  });
+
+  it("canonicalizes item names with trim, NFC, and ASCII fold without collapsing inner whitespace", () => {
+    const ref = source("skills/example/SKILL.md");
+    expect(createItemId("codex", "skill", "  café  ", ref)).toBe(
+      createItemId("codex", "skill", "cafe\u0301", ref),
+    );
+    expect(createItemId("codex", "skill", "my  skill", ref)).not.toBe(
+      createItemId("codex", "skill", "my skill", ref),
+    );
+  });
+
+  it("rejects an empty finding category", () => {
+    const input = baseInput();
+    input.findings = [finding({ category: "" })];
+    expect(() => buildReport(input)).toThrowError(/AH-REPORT-INVALID-SHAPE/);
   });
 });

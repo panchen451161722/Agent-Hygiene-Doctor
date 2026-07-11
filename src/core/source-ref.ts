@@ -12,11 +12,13 @@ export interface RootDescriptor {
 const WINDOWS_ABSOLUTE = /^[A-Za-z]:\//;
 
 export const assertValidSourceRef = (source: SourceRef): void => {
+  if (source.rootId.length === 0) {
+    throw new Error("AH-REPORT-INVALID-SOURCE-REF: source paths must be safe slash-separated relative paths");
+  }
   const path = source.relativePath;
   if (path === ".") return;
   const segments = path.split("/");
   if (
-    source.rootId.length === 0 ||
     path.length === 0 ||
     path.startsWith("/") ||
     WINDOWS_ABSOLUTE.test(path) ||

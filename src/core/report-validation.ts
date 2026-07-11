@@ -224,7 +224,7 @@ export const validateReportInput = (input: BuildReportInput): void => {
     nonEmpty(finding.ruleId);
     nonEmpty(finding.instanceId);
     enumeration(finding.severity, ["info", "warning", "error"]);
-    string(finding.category);
+    nonEmpty(finding.category);
     nonEmpty(finding.title);
     nonEmpty(finding.impact);
     array(finding.evidence).forEach(validateEvidence);

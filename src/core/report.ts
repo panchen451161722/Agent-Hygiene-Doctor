@@ -61,7 +61,7 @@ const SEVERITY_ORDER: Readonly<Record<Severity, number>> = { info: 0, warning: 1
 const compareText = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
 const asciiFold = (value: string): string =>
   value.replace(/[A-Z]/g, (character) => character.toLowerCase());
-const canonicalName = (value: string): string => asciiFold(value.trim().replace(/\s+/g, " "));
+const canonicalName = (value: string): string => asciiFold(value.trim().normalize("NFC"));
 
 const stableHash = (tuple: readonly unknown[]): string =>
   createHash("sha256").update(JSON.stringify(tuple)).digest("hex");
