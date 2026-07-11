@@ -27,6 +27,7 @@ describe("PathDialect", () => {
 
   it("rejects relative resolve inputs", () => {
     expect(() => posixDialect.resolve("relative")).toThrow();
+    expect(() => posixDialect.resolve()).toThrow();
     expect(() => win32Dialect.resolve("/agent", "nested")).toThrow();
     expect(() => win32Dialect.resolve("C:\\agent", "nested")).toThrow();
     expect(() => win32Dialect.resolve("C:\\agent", "D:escape")).toThrow();

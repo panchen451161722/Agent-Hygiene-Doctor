@@ -77,6 +77,7 @@ class NodePathDialect implements PathDialect {
 
   resolve(...values: string[]): string {
     values.forEach((value) => this.assertSafe(value));
+    if (values.length === 0) throw new UnsafePathError("at least one path is required");
     const result = this.path.resolve(...values);
     this.assertSafe(result);
     return result;
