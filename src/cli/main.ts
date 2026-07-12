@@ -7,7 +7,7 @@ import {
   parseCliOptions,
 } from "./options.js";
 import { runDoctor, runDoctorAsync } from "./doctor.js";
-import { runSetup } from "./setup.js";
+import { runSetup, runSetupAsync } from "./setup.js";
 
 export type CliParser = typeof parseCliOptions;
 
@@ -56,5 +56,5 @@ if (
 
 
 export async function runCliAsync(argv: readonly string[], runtime: CliRuntime = processRuntime, parse: CliParser = parseCliOptions): Promise<number> {
-  try { const result = parse(argv); if ("kind" in result) { runtime.writeStdout(result.output); return result.exitCode; } return result.command === "doctor" ? await runDoctorAsync(result, runtime) : runSetup(result, runtime); } catch (error: unknown) { if (!(error instanceof CliError)) throw error; runtime.writeStderr(`fatal: ${formatCliError(error)}\n`); return 2; }
+  try { const result = parse(argv); if ("kind" in result) { runtime.writeStdout(result.output); return result.exitCode; } return result.command === "doctor" ? await runDoctorAsync(result, runtime) : await runSetupAsync(result, runtime); } catch (error: unknown) { if (!(error instanceof CliError)) throw error; runtime.writeStderr(`fatal: ${formatCliError(error)}\n`); return 2; }
 }
