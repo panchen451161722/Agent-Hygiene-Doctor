@@ -14,4 +14,5 @@ describe("live adapter file projections", () => {
   it("projects Claude user skills from admitted directory entries", async () => { const result = await claude.scan(context({ "skills/demo/SKILL.md": "skill" }, { "skills": ["demo"] })); expect(result.inventory).toMatchObject([{ facts: { type: "skill", effectiveName: "demo" } }]); });
   it("projects Hermes YAML configuration", async () => { const result = await hermes.scan(context({ "config.yaml": "enabled: true" })); expect(result.inventory.some((entry) => entry.kind === "configuration")).toBe(true); });
   it("projects Hermes SOUL instructions", async () => { const result = await hermes.scan(context({ "SOUL.md": "soul" })); expect(result.inventory).toHaveLength(1); expect(result.inventory[0]?.agent).toBe("hermes"); });
+  it("projects Hermes user skills from admitted directory entries", async () => { const result = await hermes.scan(context({ "skills/demo/SKILL.md": "skill" }, { "skills": ["demo"] })); expect(result.inventory).toMatchObject([{ facts: { type: "skill", effectiveName: "demo" } }]); });
 });
