@@ -6,7 +6,7 @@ import {
   formatCliError,
   parseCliOptions,
 } from "./options.js";
-import { runDoctor } from "./doctor.js";
+import { runDoctor, runDoctorAsync } from "./doctor.js";
 import { runSetup } from "./setup.js";
 
 export type CliParser = typeof parseCliOptions;
@@ -51,6 +51,10 @@ if (
   executablePath !== undefined &&
   import.meta.url === pathToFileURL(executablePath).href
 ) {
-  process.exitCode = runCli(process.argv.slice(2));
+  void runCliAsync(process.argv.slice(2)).then((code) => { process.exitCode = code; });
 }
 
+
+export async function runCliAsync(argv: readonly string[], runtime: CliRuntime = processRuntime, parse: CliParser = parseCliOptions): Promise<number> {
+  try { const result = parse(argv); if ("kind" in result) { runtime.writeStdout(result.output); return result.exitCode; } return result.command === "doctor" ? await runDoctorAsync(result, runtime) : runSetup(result, runtime); } catch (error: unknown) { if (!(error instanceof CliError)) throw error; runtime.writeStderr(`fatal: ${formatCliError(error)}\n`); return 2; }
+}
