@@ -43,4 +43,12 @@ describe("createScanContext", () => {
     const context = await createScanContext({ ...base, projectRoot: "/repo" });
     expect(context.genericProjectRoot).toBe("/repo");
   });
+
+  it("creates one shared SafeFileSystem when a backend is injected", async () => {
+    const backend = { lstat: async () => ({ type: "directory" as const, size: 0 }), realpath: async (path: string) => path, readDirectory: async () => [], openRegularFile: async () => ({ stat: async () => ({ type: "file" as const, size: 0 }), read: async () => new Uint8Array(), close: async () => undefined }) };
+    const context = await createScanContext({ platform: "linux", paths: posixDialect, selectedWorkingDirectory: "/repo", projectRoot: "/repo", environment: { HOME: "/home/alice" }, fs: { lstat: async () => "directory" as const }, backend, toolVersion: "0.1.0" });
+    expect(context.safeFs).toBeDefined();
+    expect(context.safeFs?.semaphore).toBe(context.ioSemaphore);
+    expect(context.roots.descriptors().map((root) => root.id)).toEqual(expect.arrayContaining(["codex-home", "claude-home", "hermes-home"]));
+  });
 });
