@@ -11,6 +11,7 @@ import { adapter as hermesAdapter } from "../adapters/hermes/adapter.js";
 import type { DoctorCliOptions } from "./options.js";
 import { renderJson } from "../reporters/json.js";
 import { renderTerminal } from "../reporters/terminal.js";
+import { analyzeConfiguration } from "../analyzers/configuration.js";
 
 const platform = (): "win32" | "darwin" | "linux" => process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
 
@@ -51,9 +52,11 @@ export const runDoctorAsync = async (options: DoctorCliOptions, runtime: CliRunt
   const context = await createScanContext({ platform: platformName, selectedWorkingDirectory: cwd, projectRoot: cwd, environment: process.env, fs, backend: nodeFsBackend, toolVersion: "0.1.0" });
   const allAdapters = { codex: codexAdapter, claude: claudeAdapter, hermes: hermesAdapter };
   const results = await runAdapters(selectedAgents.map((agent) => allAdapters[agent]), context);
-  const inventory = results.flatMap((result) => result.inventory); const diagnostics = results.flatMap((result) => result.diagnostics);
-  const report = buildReport({ tool: { name: "agent-hygiene-cli", version: "0.1.0" }, scan: { startedAt: new Date().toISOString(), durationMs: 0, platform: platformName, projectRoot: { rootId: "project", relativePath: "." }, selectedWorkingDirectory: { rootId: "project", relativePath: "." }, selectedAgents, coverage: "unknown" }, roots: [{ id: "home", kind: "home", alias: "~" }, { id: "project", kind: "project", alias: "<project>" }], adapters: results.map((result) => ({ agent: result.agent, status: result.coverage === "complete" ? "complete" : result.coverage === "unknown" ? "not-detected" : "partial", coverage: result.coverage, inventoryCount: 0, diagnosticCodes: [] })), inventory, findings: [], diagnostics, summary: { inventoryCount: 0, findings: { info: 0, warning: 0, error: 0 }, diagnostics: { info: 0, warning: 0, error: 0 } } });
-  runtime.writeStdout(options.format === "json" ? `${renderJson(report)}\n` : renderTerminal(report)); return 0;
+  const inventory = results.flatMap((result) => result.inventory); const diagnostics = results.flatMap((result) => result.diagnostics); const findings = analyzeConfiguration(inventory);
+  const report = buildReport({ tool: { name: "agent-hygiene-cli", version: "0.1.0" }, scan: { startedAt: new Date().toISOString(), durationMs: 0, platform: platformName, projectRoot: { rootId: "project", relativePath: "." }, selectedWorkingDirectory: { rootId: "project", relativePath: "." }, selectedAgents, coverage: "unknown" }, roots: [{ id: "home", kind: "home", alias: "~" }, { id: "project", kind: "project", alias: "<project>" }], adapters: results.map((result) => ({ agent: result.agent, status: result.coverage === "complete" ? "complete" : result.coverage === "unknown" ? "not-detected" : "partial", coverage: result.coverage, inventoryCount: 0, diagnosticCodes: [] })), inventory, findings, diagnostics, summary: { inventoryCount: 0, findings: { info: 0, warning: 0, error: 0 }, diagnostics: { info: 0, warning: 0, error: 0 } } });
+  runtime.writeStdout(options.format === "json" ? `${renderJson(report)}\n` : renderTerminal(report));
+  const threshold = options.failOn === "warning" ? ["warning", "error"] : ["error"];
+  return report.findings.some((finding) => threshold.includes(finding.severity)) ? 1 : 0;
 };
 
 
