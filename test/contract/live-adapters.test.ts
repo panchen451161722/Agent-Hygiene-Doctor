@@ -9,6 +9,9 @@ describe("live adapter file projections", () => {
   it("projects Codex project instructions", async () => { const result = await codex.scan(context({ "AGENTS.md": "rules" })); expect(result.inventory).toHaveLength(1); expect(result.inventory[0]?.agent).toBe("codex"); });
   it("projects Codex TOML configuration", async () => { const result = await codex.scan(context({ "config.toml": "profile = \"default\"" })); expect(result.inventory.some((entry) => entry.kind === "configuration")).toBe(true); });
   it("projects Claude project instructions", async () => { const result = await claude.scan(context({ "CLAUDE.md": "rules" })); expect(result.inventory).toHaveLength(1); expect(result.inventory[0]?.agent).toBe("claude"); });
+  it("projects Claude JSON settings", async () => { const result = await claude.scan(context({ "settings.json": "{}" })); expect(result.inventory.some((entry) => entry.kind === "configuration")).toBe(true); });
+  it("projects Hermes YAML configuration", async () => { const result = await hermes.scan(context({ "config.yaml": "enabled: true" })); expect(result.inventory.some((entry) => entry.kind === "configuration")).toBe(true); });
   it("projects Hermes SOUL instructions", async () => { const result = await hermes.scan(context({ "SOUL.md": "soul" })); expect(result.inventory).toHaveLength(1); expect(result.inventory[0]?.agent).toBe("hermes"); });
 });
+
 
