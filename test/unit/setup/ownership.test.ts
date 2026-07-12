@@ -16,4 +16,9 @@ describe("owned setup lifecycle", () => {
   it("refuses uninstall after owned content changes", async () => {
     const fs = memoryFs(); const files = [{ path: "launcher.md", content: "owned" }]; const manifest = await installOwnedFiles(fs, files, "manifest.json"); fs.files.set("launcher.md", "changed"); await expect(uninstallOwnedFiles(fs, manifest)).rejects.toThrow("AH-SETUP-CONFLICT");
   });
+  it("does not treat permission failures as absent destination files", async () => {
+    const fs = memoryFs();
+    fs.readFile = async () => { const error = Object.assign(new Error("denied"), { code: "EACCES" }); throw error; };
+    await expect(installOwnedFiles(fs, [{ path: "launcher.md", content: "owned" }], "manifest.json")).rejects.toThrow("denied");
+  });
 });
