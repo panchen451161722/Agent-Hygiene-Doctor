@@ -18,6 +18,7 @@ export interface ScanClock {
 }
 
 export interface ScanContextFileSystem extends MetadataFileSystem {
+  readonly readFile?: (path: string) => Promise<string>;
   readonly [key: string]: unknown;
 }
 
@@ -105,3 +106,5 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
   };
   return Object.freeze(context) as ScanContext;
 };
+
+
