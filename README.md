@@ -4,7 +4,7 @@ Agent Hygiene CLI is a deterministic, read-only scanner for the local configurat
 
 ## Status
 
-Version `0.1.0` is an implementation preview. The bounded filesystem layer, report contract, parsers, redaction helpers, rule primitives, inspectors, analyzer boundaries, and CLI scaffolding are implemented. Agent-specific discovery and the complete setup lifecycle are still being expanded.
+Version `0.1.0` is an implementation preview. The `doctor` command supports terminal and JSON reports, agent filtering, explicit project roots, machine-readable agent mode, and configurable failure thresholds. Broader agent-specific discovery and release validation are still being expanded.
 
 ## Requirements
 
@@ -14,8 +14,7 @@ Version `0.1.0` is an implementation preview. The bounded filesystem layer, repo
 ## Install and build
 
 ```bash
-pnpm install
-pnpm build
+npm install -g agent-hygiene-cli
 ```
 
 The package exposes one executable: `agent-hygiene`.
