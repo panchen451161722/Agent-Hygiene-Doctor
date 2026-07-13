@@ -55,9 +55,34 @@ agent-hygiene setup --yes
 agent-hygiene setup --uninstall --yes
 ```
 
+### Safe remove and restore
+
+Version 1.1 adds an explicit, recoverable removal workflow for user- and project-owned Skills and supported active MCP definitions. `doctor` remains read-only.
+
+```bash
+# Interactive checkbox selection; this only creates a plan
+agent-hygiene remove
+
+# Non-interactive plan generation from exact inventory IDs
+agent-hygiene remove --item <item-id> --item <item-id> --dry-run
+
+# Apply only a saved plan, with an explicit confirmation
+agent-hygiene remove <operation-id> --yes
+
+# Inspect safe operation summaries, or restore a completed operation
+agent-hygiene operations
+agent-hygiene restore <operation-id> --yes
+```
+
+Removal moves a whole Skill directory or the selected MCP configuration node into a private quarantine store. The command rescans and rechecks content fingerprints immediately before writing. If any target cannot be applied or verified, the operation is rolled back. Restore refuses to overwrite a path changed after removal.
+
+Only user/project entries in an active or disabled state are eligible. Managed, plugin-owned, external, unresolved, and candidate entries are displayed in interactive mode but cannot be selected. JSON/JSONC, YAML, and TOML edits are source-range edits; unsupported syntax is refused rather than reformatted.
+
+On Windows the quarantine store is under `%LOCALAPPDATA%\agent-hygiene\quarantine` (falling back to `%USERPROFILE%`); on POSIX it is under `~/.agent-hygiene/quarantine`. Operation manifests are private local recovery metadata and commands never display backup content or physical source paths.
 ## Safety model
 
 - `doctor` is read-only after startup.
+- `remove` and `restore` are the only additional mutation commands; both require an operation ID and `--yes` before agent files change.
 - All reads pass through an injected, bounded filesystem boundary.
 - Paths are segment-checked, canonicalized, and checked for ancestor symlink/junction escapes.
 - Only regular files and directories are traversed; special files are rejected.

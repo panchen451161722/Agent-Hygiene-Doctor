@@ -553,3 +553,9 @@ Completed scans serialize typed diagnostics inside `ReportV1`. Invalid arguments
 - Hermes configuration guide: <https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/configuration.md>
 - Node.js supported releases: <https://nodejs.org/en/about/previous-releases>
 - Existing unrelated `agent-hygiene` npm package: <https://www.npmjs.com/package/agent-hygiene>
+
+## 1.1 Recoverable manual removal
+
+`doctor` remains read-only. The only additional mutation commands are `remove` and `restore`. A removal command first creates a private immutable operation from exact inventory item IDs (or a TTY checkbox selection), then requires `agent-hygiene remove <operation-id> --yes` before any agent file changes. It supports only user/project Skills and active or disabled MCP definitions with a proven writable source; managed, plugin-owned, external, unresolved, and candidate sources are refused.
+
+Every operation stores local recovery metadata protected by filesystem permissions in the user quarantine root, rechecks source fingerprints before mutation, preserves a verified complete Skill directory or original MCP file, and rolls back all selected targets after any failure. `agent-hygiene restore <operation-id> --yes` requires the removal post-image to remain untouched, so it never overwrites later user edits. Public command output contains safe SourceRef values only, never physical paths, configuration values, or backup content.

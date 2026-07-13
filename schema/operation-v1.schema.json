@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-hygiene.local/schema/operation-v1.schema.json",
+  "title": "Agent Hygiene private removal operation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "operationId", "toolVersion", "createdAt", "status", "targets"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "operationId": { "type": "string", "format": "uuid" },
+    "toolVersion": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["planned", "applying", "applied", "restoring", "restored", "rolled_back", "failed"] },
+    "projectDirectory": { "type": "string" },
+    "errorCode": { "type": "string", "pattern": "^AH-REMOVE-" },
+    "appliedAt": { "type": "string", "format": "date-time" },
+    "restoredAt": { "type": "string", "format": "date-time" },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["itemId", "agent", "kind", "name", "scope", "source", "absolutePath", "rootPath", "preImageHash", "plannedPostImageHash", "backupPath"],
+        "properties": {
+          "itemId": { "type": "string" },
+          "agent": { "enum": ["codex", "claude", "hermes"] },
+          "kind": { "enum": ["skill", "mcp"] },
+          "name": { "type": "string" },
+          "scope": { "enum": ["user", "project"] },
+          "source": { "type": "object", "additionalProperties": false, "required": ["rootId", "relativePath"], "properties": { "rootId": { "type": "string" }, "relativePath": { "type": "string" } } },
+          "absolutePath": { "type": "string" },
+          "rootPath": { "type": "string" },
+          "preImageHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "plannedPostImageHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "backupPath": { "type": "string", "pattern": "^backups/" },
+          "locator": { "type": "object", "additionalProperties": false, "required": ["key", "name", "format"], "properties": { "key": { "enum": ["mcp_servers", "mcpServers"] }, "name": { "type": "string" }, "format": { "enum": ["json", "yaml", "toml"] } } }
+        }
+      }
+    }
+  }
+}
