@@ -3,7 +3,7 @@
 > 修订日期：2026-07-13
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`
 > 分支：`codex/agent-hygiene-v01`
-> 当前基线：`bb102b9`
+> 当前代码基线：`a15b02b`
 > 当前验证基线：32 个测试文件、161 项测试，`pnpm check` 通过。
 > 用途：可直接交给 Codex、Claude、GPT 等后续模型继续执行。
 
@@ -73,6 +73,15 @@
 
 不要从旧 Task A 重新开发；已完成代码必须先审计后复用。
 
+## 4.1 已完成的 Task G 加固（2026-07-13）
+
+- [x] G1：`2eb0d32` 以 MCP item evidence 保证同一配置中的 findings ID 唯一。
+- [x] G2：`13ba49d` 将 configuration analyzer 限制为 configuration facts。
+- [x] G3：`20235b3` 在 inspector 前只保留 credential 字段名。
+- [x] G4：`1c47cd8` 抽离共享 MCP projection，Claude/Hermes 不再依赖 Codex adapter。
+- [x] G5：`a15b02b` 覆盖空 command、错误 env/header、冲突 command/url、IPv6 loopback 和 disabled malformed MCP。
+
+后续执行从 Task H 开始；保留 Task G 内容作为已验证的设计约束与回归参考。
 ## 5. Task G：MCP 正确性加固（最高优先级）
 
 ### G1. 修复 finding instance ID 冲突
