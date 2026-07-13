@@ -10,6 +10,7 @@ import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectSkill } from "../../inspectors/skill.js";
 import { projectMcpServers } from "../shared/mcp.js";
 import { resolveMcpCommands } from "../shared/command-resolution.js";
+import { hasClaudeProjectMcpApproval } from "./approval.js";
 
 export class ClaudeAdapter implements AgentAdapter {
   readonly agent: AgentId = "claude";
@@ -21,6 +22,15 @@ export class ClaudeAdapter implements AgentAdapter {
     const inventory: ReturnType<typeof item>[] = [];
     const diagnostics: Diagnostic[] = [];
     const mcpPrecedence = new Map<string, number>();
+    let projectMcpApproved = false;
+    const approvalHome = await safeFs.admitRoot("home");
+    if (approvalHome.ok) {
+      const application = await safeFs.readText(approvalHome.root, ".claude.json");
+      if (application.ok) {
+        const parsed = parseJson(application.text, { source: { rootId: "home", relativePath: ".claude.json" } });
+        projectMcpApproved = parsed.ok && hasClaudeProjectMcpApproval(parsed.value, context.genericProjectRoot);
+      }
+    }
     const project = await safeFs.admitRoot("project");
     if (project.ok) {
       const instruction = await safeFs.readText(project.root, "CLAUDE.md");
@@ -30,7 +40,7 @@ export class ClaudeAdapter implements AgentAdapter {
       const localSettings = await safeFs.readText(project.root, ".claude/settings.local.json");
       if (localSettings.ok) await this.addSettings(context, inventory, diagnostics, mcpPrecedence, localSettings.text, { rootId: "project", relativePath: ".claude/settings.local.json" }, "project", 3);
       const mcp = await safeFs.readText(project.root, ".mcp.json");
-      if (mcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, mcp.text, { rootId: "project", relativePath: ".mcp.json" }, "project", 2);
+      if (mcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, mcp.text, { rootId: "project", relativePath: ".mcp.json" }, "project", 2, projectMcpApproved ? "active" : "unresolved");
       await this.addSkills(safeFs, project.root, ".claude/skills", "project", "project", inventory);
     }
 
@@ -62,18 +72,19 @@ export class ClaudeAdapter implements AgentAdapter {
     }
   }
 
-  private async addMcpItems(context: ScanContext, inventory: ReturnType<typeof item>[], precedenceByItemId: Map<string, number>, value: unknown, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number): Promise<void> {
-    for (const server of await resolveMcpCommands(context, projectMcpServers(value, "mcpServers"))) {
+  private async addMcpItems(context: ScanContext, inventory: ReturnType<typeof item>[], precedenceByItemId: Map<string, number>, value: unknown, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number, activeStatus: "active" | "unresolved" = "active"): Promise<void> {
+    const projected = projectMcpServers(value, "mcpServers").map((server) => server.status === "active" ? { ...server, status: activeStatus } : server);
+    for (const server of await resolveMcpCommands(context, projected)) {
       const mcp = inspectMcp(server.input, { agent: this.agent, source, scope, status: server.status, loading: "always" });
       inventory.push(mcp);
       precedenceByItemId.set(mcp.itemId, precedence);
     }
   }
 
-  private async addMcpFile(context: ScanContext, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], precedenceByItemId: Map<string, number>, text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number): Promise<void> {
+  private async addMcpFile(context: ScanContext, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], precedenceByItemId: Map<string, number>, text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number, activeStatus: "active" | "unresolved" = "active"): Promise<void> {
     const parsed = parseJson(text, { source });
     if (!parsed.ok) { diagnostics.push({ ...parsed.diagnostic, agent: this.agent }); return; }
-    await this.addMcpItems(context, inventory, precedenceByItemId, parsed.value, source, scope, precedence);
+    await this.addMcpItems(context, inventory, precedenceByItemId, parsed.value, source, scope, precedence, activeStatus);
   }
 
   private async addSettings(context: ScanContext, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], precedenceByItemId: Map<string, number>, text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number): Promise<void> {
