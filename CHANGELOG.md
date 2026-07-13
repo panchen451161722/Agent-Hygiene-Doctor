@@ -2,6 +2,18 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 2.0.0 - 2026-07-13
+
+### Breaking changes
+
+- The installed executable is now `ahd`; `agent-hygiene` is no longer installed as a command.
+- Existing scripts, CI jobs, shell aliases, and launcher Skills must invoke `ahd`.
+
+### Changed
+
+- Added GitHub package metadata for `panchen451161722/Agent-Hygiene-Doctor`.
+- Existing report identifiers, Skill locations, quarantines, operations, and restore data remain compatible.
+
 ## 1.2.0 - 2026-07-13
 
 ### Added

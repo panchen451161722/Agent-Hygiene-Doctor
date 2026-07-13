@@ -59,7 +59,7 @@ if (
 
 export async function runCliAsync(argv: readonly string[], runtime: CliRuntime = processRuntime, parse: CliParser = parseCliOptions): Promise<number> {
   if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) {
-    runtime.writeStdout("Usage: agent-hygiene <doctor|setup|remove|restore|operations> [options]\n");
+    runtime.writeStdout("Usage: ahd <doctor|setup|remove|restore|operations> [options]\n");
     return 0;
   }
   if (argv[0] === "remove") return runRemoveAsync(argv.slice(1), runtime);

@@ -21,8 +21,8 @@ const sourceLabel = (source: { rootId: string; relativePath: string }): string =
 
 const publicOperation = (operation: RemovalOperation) => ({ operationId: operation.operationId, createdAt: operation.createdAt, status: operation.status, itemCount: operation.targets.length, items: operation.targets.map((target) => ({ itemId: target.itemId, agent: target.agent, kind: target.kind, name: target.name, scope: target.scope, source: target.source })) });
 const publicItemLabel = (target: { readonly agent: string; readonly kind: string; readonly name: string; readonly scope: string; readonly source: { readonly rootId: string; readonly relativePath: string } }): string => `[${terminalText(target.agent)}] ${terminalText(target.kind)} ${terminalText(target.name)} — ${terminalText(target.scope)} — ${sourceLabel(target.source)}`;
-const renderPlan = (operation: RemovalOperation, format: Format): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `Removal plan: ${operation.operationId}\nItems:\n${operation.targets.map(publicItemLabel).join("\n")}\nExecute: agent-hygiene remove ${operation.operationId} --yes\n`;
-const renderComplete = (operation: RemovalOperation, format: Format, verb: "removed" | "restored" | "recovered"): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `${verb} ${operation.targets.length} item(s)\n${verb === "removed" ? `Restore: agent-hygiene restore ${operation.operationId} --yes\n` : ""}`;
+const renderPlan = (operation: RemovalOperation, format: Format): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `Removal plan: ${operation.operationId}\nItems:\n${operation.targets.map(publicItemLabel).join("\n")}\nExecute: ahd remove ${operation.operationId} --yes\n`;
+const renderComplete = (operation: RemovalOperation, format: Format, verb: "removed" | "restored" | "recovered"): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `${verb} ${operation.targets.length} item(s)\n${verb === "removed" ? `Restore: ahd restore ${operation.operationId} --yes\n` : ""}`;
 const parsePlanArguments = (argv: readonly string[]): PlanArguments => {
   const agents: Agent[] = [];
   const items: string[] = [];
@@ -68,11 +68,11 @@ const chooseItems: RemoveSelection = async (options) => {
   return selected;
 };
 
-const renderCodexComplete = (operation: RemovalOperation): string => `Quarantined ${operation.targets.length} item(s).\nOperation: ${operation.operationId}\nRestore: agent-hygiene restore ${operation.operationId} --yes\n`;
+const renderCodexComplete = (operation: RemovalOperation): string => `Quarantined ${operation.targets.length} item(s).\nOperation: ${operation.operationId}\nRestore: ahd restore ${operation.operationId} --yes\n`;
 
 export const runRemoveAsync = async (argv: readonly string[], runtime: CliRuntime, select: RemoveSelection = chooseItems): Promise<number> => {
   try {
-    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: agent-hygiene remove --codex [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | [--agent <agent>] [--kind <skill|mcp>] [--item <item-id>] [--project <dir>] [--dry-run] [--agent-mode]\n"); return 0; }
+    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd remove --codex [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | [--agent <agent>] [--kind <skill|mcp>] [--item <item-id>] [--project <dir>] [--dry-run] [--agent-mode]\n"); return 0; }
     if (argv[0] !== undefined && !argv[0].startsWith("-") && argv.includes("--codex")) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
     if (argv.length > 0 && !argv[0]!.startsWith("-")) {
       const options = parseExecutionArguments(argv);
@@ -100,7 +100,7 @@ export const runRemoveAsync = async (argv: readonly string[], runtime: CliRuntim
 
 export const runRestoreAsync = async (argv: readonly string[], runtime: CliRuntime): Promise<number> => {
   try {
-    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: agent-hygiene restore <operation-id> --yes [--format json]\n"); return 0; }
+    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd restore <operation-id> --yes [--format json]\n"); return 0; }
     const options = parseExecutionArguments(argv);
     const operation = await restoreRemoval(new OperationStore(), options.operationId);
     runtime.writeStdout(renderComplete(operation, options.format, operation.status === "rolled_back" ? "recovered" : "restored"));
@@ -110,7 +110,7 @@ export const runRestoreAsync = async (argv: readonly string[], runtime: CliRunti
 
 export const runOperationsAsync = async (argv: readonly string[], runtime: CliRuntime): Promise<number> => {
   try {
-    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: agent-hygiene operations [--format json|--agent-mode]\n"); return 0; }
+    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd operations [--format json|--agent-mode]\n"); return 0; }
     const format: Format = argv.length === 0 ? "terminal" : (argv.length === 1 && argv[0] === "--agent-mode") || (argv.length === 2 && argv[0] === "--format" && argv[1] === "json") ? "json" : (() => { throw new RemovalError("AH-REMOVE-INVALID-ITEM"); })();
     const operations = await new OperationStore().list();
     if (format === "json") runtime.writeStdout(`${JSON.stringify({ operations })}\n`);

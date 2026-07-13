@@ -1,6 +1,6 @@
 {
   "name": "agent-hygiene-cli",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Offline hygiene scanner and safe recovery workflow for local AI-agent configuration.",
   "license": "MIT",
   "author": "panchen",
@@ -14,7 +14,18 @@
   ],
   "type": "module",
   "bin": {
-    "agent-hygiene": "./dist/cli/main.js"
+    "ahd": "./dist/cli/main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panchen451161722/Agent-Hygiene-Doctor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/panchen451161722/Agent-Hygiene-Doctor/issues"
+  },
+  "homepage": "https://github.com/panchen451161722/Agent-Hygiene-Doctor#readme",
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",

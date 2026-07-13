@@ -167,8 +167,8 @@ function normalizeSetupOptions(raw: RawSetupOptions): SetupCliOptions {
 export function parseCliOptions(argv: readonly string[]): CliParseResult {
   const output: string[] = [];
   const program = new Command()
-    .name("agent-hygiene")
-    .version("1.2.0")
+    .name("ahd")
+    .version("2.0.0")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => output.push(text),
@@ -189,7 +189,7 @@ export function parseCliOptions(argv: readonly string[]): CliParseResult {
   );
 
   try {
-    program.parse(["node", "agent-hygiene", ...argv]);
+    program.parse(["node", "ahd", ...argv]);
   } catch (error: unknown) {
     if (error instanceof CliError) {
       throw error;

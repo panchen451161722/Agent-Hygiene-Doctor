@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe("CLI executable boundary", () => {
   it("is import-safe and exposes an injectable runner", async () => {
-    process.argv = ["node", "agent-hygiene", "not-a-command"];
+    process.argv = ["node", "ahd", "not-a-command"];
     process.exitCode = undefined;
 
     const mainModule = await import("../../../src/cli/main.js");
@@ -85,7 +85,7 @@ describe("CLI executable boundary", () => {
     };
 
     expect(runCli(["--help"], runtime)).toBe(0);
-    expect(stdout.join("")).toContain("Usage: agent-hygiene");
+    expect(stdout.join("")).toContain("Usage: ahd");
     expect(stderr).toEqual([]);
   });
 });

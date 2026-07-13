@@ -5,7 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const bin = process.platform === "win32" ? "agent-hygiene.cmd" : "agent-hygiene";
+const bin = process.platform === "win32" ? "ahd.cmd" : "ahd";
 const temp = await mkdtemp(join(tmpdir(), "agent-hygiene-pack-"));
 const run = (command, args, options = {}) => execFileSync(command, args, { ...options, shell: process.platform === "win32" });
 
@@ -19,6 +19,8 @@ try {
   run(npm, ["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", installRoot, packagePath], { stdio: "inherit" });
   const installedBin = join(installRoot, "node_modules", ".bin", bin);
   if (!existsSync(installedBin)) throw new Error(`AH-PACK-VERIFY: installed bin is missing (${basename(installedBin)})`);
+  const legacyBin = join(installRoot, "node_modules", ".bin", process.platform === "win32" ? "agent-hygiene.cmd" : "agent-hygiene");
+  if (existsSync(legacyBin)) throw new Error("AH-PACK-VERIFY: legacy agent-hygiene bin is unexpectedly installed");
 
   const profile = join(temp, "profile");
   const project = join(temp, "project");
@@ -37,6 +39,7 @@ try {
     CODEX_HOME: join(profile, ".codex"),
   };
   const cli = (args) => run(installedBin, args, { encoding: "utf8", env: environment });
+  if (cli(["--version"]).trim() !== "2.0.0") throw new Error("AH-PACK-VERIFY: installed ahd version is incorrect");
   const report = JSON.parse(cli(["doctor", "--agent", "codex", "--project", project, "--format", "json"]));
   if (report.schemaVersion !== 1) throw new Error("AH-PACK-VERIFY: installed bin did not produce report-v1 JSON");
   const skillItem = report.inventory.find((item) => item.kind === "skill" && item.name === "packed-demo");

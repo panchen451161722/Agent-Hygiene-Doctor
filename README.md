@@ -4,9 +4,9 @@ Agent Hygiene CLI is an offline scanner and recovery tool for the local configur
 
 ## Status
 
-Version `1.2.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
+Version `2.0.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
 
-`doctor` is read-only. Version 1.2 adds a Codex-only interactive shortcut for recoverable removal; the existing operation-ID workflow remains available for automation.
+`doctor` is read-only. Version 2.0 renames the executable to `ahd` and retains a Codex-only interactive shortcut for recoverable removal; the existing operation-ID workflow remains available for automation.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ To verify the packed artifact locally, without publishing it:
 pnpm verify-pack
 ```
 
-After `pnpm build`, the executable is available as `node dist/cli/main.js`. If you deliberately want a global installation from this checkout, use `npm install -g .`; this installs the local package, not an npm-registry release.
+After `pnpm build`, the executable is available as `node dist/cli/main.js`. To install the local package globally, use `pnpm add -g .`, then run `ahd`; this is not an npm-registry release.
 
 ## Commands
 
@@ -39,12 +39,12 @@ After `pnpm build`, the executable is available as `node dist/cli/main.js`. If y
 `doctor` performs an offline scan and does not write to agent configuration, credentials, sessions, logs, caches, or project files.
 
 ```bash
-agent-hygiene doctor
-agent-hygiene doctor --format json
-agent-hygiene doctor --agent codex --agent claude
-agent-hygiene doctor --project ./my-project
-agent-hygiene doctor --fail-on warning
-agent-hygiene doctor --agent-mode
+ahd doctor
+ahd doctor --format json
+ahd doctor --agent codex --agent claude
+ahd doctor --project ./my-project
+ahd doctor --fail-on warning
+ahd doctor --agent-mode
 ```
 
 | Option | Meaning |
@@ -61,9 +61,9 @@ agent-hygiene doctor --agent-mode
 `setup` is the explicit write command for the optional launcher Skill. Use `--dry-run` to preview actions. Write operations require explicit confirmation with `--yes`; `--force` and `--uninstall` are available for the corresponding lifecycle actions.
 
 ```bash
-agent-hygiene setup --dry-run
-agent-hygiene setup --yes
-agent-hygiene setup --uninstall --yes
+ahd setup --dry-run
+ahd setup --yes
+ahd setup --uninstall --yes
 ```
 
 ### Safe remove and restore
@@ -73,21 +73,21 @@ agent-hygiene setup --uninstall --yes
 ```bash
 # Recommended for an interactive Codex cleanup: select with Space, then Enter
 # immediately quarantines selected entries and prints a restore command.
-agent-hygiene remove --codex
+ahd remove --codex
 
 # Preview the selected Codex items without changing agent files
-agent-hygiene remove --codex --dry-run
+ahd remove --codex --dry-run
 
 # Existing generic interaction still creates a plan; scripts can use exact IDs.
-agent-hygiene remove
-agent-hygiene remove --item <item-id> --item <item-id> --dry-run
+ahd remove
+ahd remove --item <item-id> --item <item-id> --dry-run
 
 # Apply a previously saved plan, with an explicit confirmation
-agent-hygiene remove <operation-id> --yes
+ahd remove <operation-id> --yes
 
 # Inspect safe operation summaries, or restore a completed operation
-agent-hygiene operations
-agent-hygiene restore <operation-id> --yes
+ahd operations
+ahd restore <operation-id> --yes
 ```
 
 Removal moves a whole Skill directory or the selected MCP configuration node into a private quarantine store. The command rescans and rechecks content fingerprints immediately before writing. If any target cannot be applied or verified, the operation is rolled back. Restore refuses to overwrite a path changed after removal.
@@ -119,7 +119,7 @@ pnpm check
 pnpm verify-pack
 ```
 
-See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-1.2.md](docs/MIGRATION-1.2.md) for upgrade notes.
+See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md) for upgrade notes.
 
 ## License
 

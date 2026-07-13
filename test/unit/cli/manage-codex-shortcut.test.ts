@@ -51,7 +51,7 @@ describe.sequential("Codex single-step removal shortcut", () => {
     await expect(runRemoveAsync(["--codex", "--project", subject.project], captured.runtime, select)).resolves.toBe(0);
     expect(captured.output().stderr).toBe("");
     expect(captured.output().stdout).toContain("Quarantined 2 item(s).");
-    expect(captured.output().stdout).toContain("Restore: agent-hygiene restore ");
+    expect(captured.output().stdout).toContain("Restore: ahd restore ");
     await expect(readFile(join(subject.skill, "SKILL.md"), "utf8")).rejects.toThrow();
     await expect(readFile(subject.config, "utf8")).resolves.not.toContain("mcp_servers.drop");
     await expect(new OperationStore().list()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ status: "applied", itemCount: 2 })]));

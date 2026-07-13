@@ -121,6 +121,6 @@ describe("parseCliOptions", () => {
 
     expect(result.kind).toBe("display");
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain("Usage: agent-hygiene");
+    expect(result.output).toContain("Usage: ahd");
   });
 });

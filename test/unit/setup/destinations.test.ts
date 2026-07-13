@@ -11,7 +11,7 @@ describe("setup destinations", () => {
     expect(resolveSetupDestination("claude", context).skillPath).toBe("/cfg/skills/agent-hygiene/SKILL.md");
     expect(resolveSetupDestination("hermes", context).skillPath).toBe("/hermes/skills/agent-hygiene/SKILL.md");
   });
-  it("pins the package version in the launcher", () => { expect(renderLauncher("1.1.0")).toContain("npx -y agent-hygiene-cli@1.1.0 doctor --agent-mode"); });
+  it("pins the package version in the launcher", () => { expect(renderLauncher("1.1.0")).toContain("pnpm dlx --package agent-hygiene-cli@1.1.0 ahd doctor --agent-mode"); });
 });
 
 
