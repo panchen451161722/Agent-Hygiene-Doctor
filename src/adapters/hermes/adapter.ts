@@ -6,7 +6,9 @@ import type { AdmittedRoot } from "../../core/fs/safe-fs.js";
 import { parseYaml } from "../../core/parsers/yaml.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
+import { inspectMcp } from "../../inspectors/mcp.js";
 import { inspectSkill } from "../../inspectors/skill.js";
+import { projectMcpServers } from "../codex/mcp.js";
 
 export class HermesAdapter implements AgentAdapter {
   readonly agent: AgentId = "hermes";
@@ -27,6 +29,7 @@ export class HermesAdapter implements AgentAdapter {
       const parsed = parseYaml(config.text, { source });
       if (!parsed.ok) diagnostics.push({ ...parsed.diagnostic, agent: this.agent });
       inventory.push(item({ agent: this.agent, source, scope: "user", status: parsed.ok ? "active" : "unresolved", loading: "always" }, "configuration", source.relativePath, { type: "configuration", format: "yaml", parseStatus: parsed.ok ? "valid" : "invalid", precedence: 1 }));
+      if (parsed.ok) for (const server of projectMcpServers(parsed.value)) inventory.push(inspectMcp(server.input, { agent: this.agent, source, scope: "user", status: server.status, loading: "always" }));
     }
     await this.addSkills(safeFs, root.root, inventory);
     return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };

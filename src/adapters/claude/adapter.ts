@@ -4,9 +4,11 @@ import type { ScanContext } from "../../core/context.js";
 import type { Diagnostic } from "../../core/diagnostic.js";
 import type { AdmittedRoot } from "../../core/fs/safe-fs.js";
 import { parseJson } from "../../core/parsers/json.js";
+import { inspectMcp } from "../../inspectors/mcp.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectSkill } from "../../inspectors/skill.js";
+import { projectMcpServers } from "../codex/mcp.js";
 
 export class ClaudeAdapter implements AgentAdapter {
   readonly agent: AgentId = "claude";
@@ -23,6 +25,8 @@ export class ClaudeAdapter implements AgentAdapter {
       if (instruction.ok) inventory.push(inspectInstruction({ text: instruction.text, condition: "path-scoped" }, { agent: this.agent, source: { rootId: "project", relativePath: "CLAUDE.md" }, scope: "project", status: "active", loading: "always" }));
       const settings = await safeFs.readText(project.root, ".claude/settings.json");
       if (settings.ok) this.addSettings(inventory, diagnostics, settings.text, { rootId: "project", relativePath: ".claude/settings.json" }, "project", 2);
+      const mcp = await safeFs.readText(project.root, ".mcp.json");
+      if (mcp.ok) this.addMcpFile(inventory, diagnostics, mcp.text, { rootId: "project", relativePath: ".mcp.json" }, "project");
       await this.addSkills(safeFs, project.root, ".claude/skills", "project", "project", inventory);
     }
 
@@ -46,11 +50,22 @@ export class ClaudeAdapter implements AgentAdapter {
     }
   }
 
+  private addMcpItems(inventory: ReturnType<typeof item>[], value: unknown, source: { rootId: string; relativePath: string }, scope: "user" | "project"): void {
+    for (const server of projectMcpServers(value, "mcpServers")) inventory.push(inspectMcp(server.input, { agent: this.agent, source, scope, status: server.status, loading: "always" }));
+  }
+
+  private addMcpFile(inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project"): void {
+    const parsed = parseJson(text, { source });
+    if (!parsed.ok) { diagnostics.push({ ...parsed.diagnostic, agent: this.agent }); return; }
+    this.addMcpItems(inventory, parsed.value, source, scope);
+  }
+
   private addSettings(inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project", precedence: number): void {
     const parsed = parseJson(text, { source });
     const facts = { type: "configuration" as const, format: "json" as const, parseStatus: parsed.ok ? "valid" as const : "invalid" as const, precedence };
     if (!parsed.ok) diagnostics.push({ ...parsed.diagnostic, agent: this.agent });
     inventory.push(item({ agent: this.agent, source, scope, status: parsed.ok ? "active" : "unresolved", loading: "always" }, "configuration", source.relativePath, facts));
+    if (parsed.ok) this.addMcpItems(inventory, parsed.value, source, scope);
   }
 }
 

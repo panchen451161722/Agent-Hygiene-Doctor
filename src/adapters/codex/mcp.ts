@@ -46,9 +46,11 @@ const projectServer = (name: string, value: unknown): CodexMcpProjection => {
   return { name, status: "unresolved", input: { name, transport: "stdio" } };
 };
 
-export const projectCodexMcp = (value: unknown): readonly CodexMcpProjection[] => {
-  if (!isRecord(value) || !isRecord(value.mcp_servers)) return [];
-  return Object.entries(value.mcp_servers)
+export const projectMcpServers = (value: unknown, key = "mcp_servers"): readonly CodexMcpProjection[] => {
+  if (!isRecord(value) || !isRecord(value[key])) return [];
+  return Object.entries(value[key])
     .map(([name, server]) => projectServer(name, server))
     .sort((left, right) => left.name.localeCompare(right.name, "en"));
 };
+
+export const projectCodexMcp = (value: unknown): readonly CodexMcpProjection[] => projectMcpServers(value);
