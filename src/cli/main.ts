@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   CliError,
@@ -49,7 +50,7 @@ const executablePath = process.argv[1];
 
 if (
   executablePath !== undefined &&
-  import.meta.url === pathToFileURL(executablePath).href
+  import.meta.url === pathToFileURL(realpathSync(executablePath)).href
 ) {
   void runCliAsync(process.argv.slice(2)).then((code) => { process.exitCode = code; });
 }
