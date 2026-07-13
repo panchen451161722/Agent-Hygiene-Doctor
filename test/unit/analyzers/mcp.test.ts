@@ -7,7 +7,7 @@ const context = { agent: "codex" as const, source: { rootId: "project", relative
 describe("MCP analyzer", () => {
   it("finds unpinned packages, plaintext remote endpoints, and credential fields", () => {
     const items = [
-      inspectMcp({ name: "remote", transport: "http", url: "http://mcp.example.test", urlClass: "plaintext-remote", headers: { Authorization: "secret" } }, context),
+      inspectMcp({ name: "remote", transport: "http", url: "http://mcp.example.test", urlClass: "plaintext-remote", headerNames: ["Authorization"] }, context),
       inspectMcp({ name: "package", transport: "stdio", command: "npx", args: ["demo@latest"] }, context),
     ];
     expect(analyzeMcp(items).map((finding) => finding.ruleId)).toEqual(["mcp-credential-field", "mcp-package-unpinned", "mcp-plaintext-remote"]);

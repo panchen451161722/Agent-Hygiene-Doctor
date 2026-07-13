@@ -1,16 +1,25 @@
 import type { InventoryItem, McpFacts } from "../core/inventory.js";
-import { credentialLikeFieldNames, fingerprintInput, fingerprintMcp, type McpFingerprintInput } from "../rules/mcp-fingerprint.js";
+import { credentialLikeNames, fingerprintInput, fingerprintMcp, type McpFingerprintInput } from "../rules/mcp-fingerprint.js";
 import { recognizePackageInvocation } from "../rules/package-spec.js";
 import { item, type InspectorContext } from "./common.js";
 
-export type McpInput = McpFingerprintInput & {
+type McpInputCommon = {
   readonly name?: string;
   readonly commandResolution?: McpFacts["commandResolution"];
   readonly urlClass?: McpFacts["urlClass"];
 };
 
+export type McpInput =
+  | (McpInputCommon & { readonly transport: "stdio"; readonly command?: string; readonly args?: readonly string[]; readonly environmentNames?: readonly string[] })
+  | (McpInputCommon & { readonly transport: "http" | "sse"; readonly url: string; readonly headerNames?: readonly string[] });
+
+const fingerprintableInput = (input: McpInput): McpFingerprintInput => input.transport === "stdio"
+  ? { transport: "stdio", ...(input.command === undefined ? {} : { command: input.command }), ...(input.args === undefined ? {} : { args: input.args }), ...(input.environmentNames === undefined ? {} : { env: Object.fromEntries(input.environmentNames.map((name) => [name, undefined])) }) }
+  : { transport: input.transport, url: input.url, ...(input.headerNames === undefined ? {} : { headers: Object.fromEntries(input.headerNames.map((name) => [name, undefined])) }) };
+
 export const inspectMcp = (input: McpInput, context: InspectorContext): InventoryItem => {
-  const fp = fingerprintInput(input);
+  const fingerprintInputValue = fingerprintableInput(input);
+  const fp = fingerprintInput(fingerprintInputValue);
   let facts: McpFacts;
   if (input.transport === "stdio") {
     const packageInvocation = input.command === undefined
@@ -19,17 +28,17 @@ export const inspectMcp = (input: McpInput, context: InspectorContext): Inventor
     facts = {
       type: "mcp",
       transport: "stdio",
-      endpointFingerprint: fingerprintMcp(input),
+      endpointFingerprint: fingerprintMcp(fingerprintInputValue),
       commandResolution: input.commandResolution ?? "unknown",
       packageInvocation,
-      credentialLikeFields: credentialLikeFieldNames(input.env),
+      credentialLikeFields: credentialLikeNames(input.environmentNames ?? []),
     };
   } else {
     facts = {
       type: "mcp",
       transport: input.transport,
-      endpointFingerprint: fingerprintMcp(input),
-      credentialLikeFields: credentialLikeFieldNames(input.headers),
+      endpointFingerprint: fingerprintMcp(fingerprintInputValue),
+      credentialLikeFields: credentialLikeNames(input.headerNames ?? []),
       urlClass: input.urlClass ?? "unknown",
     };
   }

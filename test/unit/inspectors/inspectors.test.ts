@@ -21,13 +21,13 @@ describe("inventory inspectors", () => {
   });
 
   it("retains only stdio MCP credential field names and package pins", () => {
-    const item = inspectMcp({ name: "github", transport: "stdio", command: "npx", args: ["@modelcontextprotocol/server-github@1.2.3"], env: { GITHUB_TOKEN: "secret-value" } }, context);
+    const item = inspectMcp({ name: "github", transport: "stdio", command: "npx", args: ["@modelcontextprotocol/server-github@1.2.3"], environmentNames: ["GITHUB_TOKEN"] }, context);
     expect(item.facts).toMatchObject({ type: "mcp", packageInvocation: "exact", credentialLikeFields: ["GITHUB_TOKEN"] });
     expect(JSON.stringify(item)).not.toContain("secret-value");
   });
 
   it("retains only HTTP MCP credential field names", () => {
-    const item = inspectMcp({ name: "remote", transport: "http", url: "https://mcp.example.test/api?token=secret-value", headers: { Authorization: "Bearer secret-value" }, urlClass: "tls" }, context);
+    const item = inspectMcp({ name: "remote", transport: "http", url: "https://mcp.example.test/api?token=secret-value", headerNames: ["Authorization"], urlClass: "tls" }, context);
     expect(item.facts).toMatchObject({ type: "mcp", urlClass: "tls", credentialLikeFields: ["Authorization"] });
     expect(JSON.stringify(item)).not.toContain("secret-value");
   });

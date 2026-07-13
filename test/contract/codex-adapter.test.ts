@@ -7,18 +7,23 @@ describe("Codex adapter projections", () => {
   it("clamps project document bytes and sorts markers", () => {
     expect(projectCodexConfig({ project_doc_max_bytes: 999999, project_root_markers: ["z", "a"], trust: "trusted" })).toEqual({ projectRootMarkers: ["a", "z"], projectDocMaxBytes: 32768, trust: "trusted" });
   });
-  it("projects safe MCP candidates from a Codex config", () => {
-    expect(projectCodexMcp({ mcp_servers: { github: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github@1.2.3"], env: { GITHUB_TOKEN: "secret" } }, remote: { url: "https://mcp.example.test/api", headers: { Authorization: "Bearer secret" } } } })).toMatchObject([
-      { name: "github", status: "active", input: { transport: "stdio", command: "npx" } },
-      { name: "remote", status: "active", input: { transport: "http", url: "https://mcp.example.test/api" } },
+
+  it("projects safe MCP candidates without credential values", () => {
+    const projection = projectCodexMcp({ mcp_servers: { github: { command: "npx", args: ["-y", "@modelcontextprotocol/server-github@1.2.3"], env: { GITHUB_TOKEN: "secret-value" } }, remote: { url: "https://mcp.example.test/api", headers: { Authorization: "Bearer secret-value" } } } });
+    expect(projection).toMatchObject([
+      { name: "github", status: "active", input: { transport: "stdio", command: "npx", environmentNames: ["GITHUB_TOKEN"] } },
+      { name: "remote", status: "active", input: { transport: "http", url: "https://mcp.example.test/api", headerNames: ["Authorization"] } },
     ]);
+    expect(JSON.stringify(projection)).not.toContain("secret-value");
   });
+
   it("keeps disabled and malformed MCP servers visible", () => {
     expect(projectCodexMcp({ mcp_servers: { disabled: { command: "node", enabled: false }, malformed: { args: ["missing-command"] } } })).toMatchObject([
       { name: "disabled", status: "disabled" },
       { name: "malformed", status: "unresolved" },
     ]);
   });
+
   it("gives override instructions precedence", () => {
     expect(selectCodexInstructions([{ path: "AGENTS.md", kind: "standard", active: true }, { path: "AGENTS.override.md", kind: "override", active: true }]).map((entry) => entry.path)).toEqual(["AGENTS.override.md", "AGENTS.md"]);
   });

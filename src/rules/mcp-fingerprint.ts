@@ -19,15 +19,12 @@ export type SafeMcpFingerprintInput = Readonly<Record<string, unknown>>;
 
 const credentialPattern = /(?:^|[-_])(?:token|secret|password|api[-_]?key|authorization|bearer|credential)(?:$|[-_])/iu;
 
-export const credentialLikeFieldNames = (value: unknown): readonly string[] => {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
-  const found: string[] = [];
-  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!credentialPattern.test(key) || typeof raw !== "string" || raw.length === 0) continue;
-    found.push(key);
-  }
-  return found.sort((left, right) => left.localeCompare(right, "en"));
-};
+export const credentialLikeNames = (names: readonly string[]): readonly string[] => [...new Set(names.filter((name) => credentialPattern.test(name)))].sort((left, right) => left.localeCompare(right, "en"));
+
+export const credentialLikeFieldNames = (value: unknown): readonly string[] =>
+  typeof value !== "object" || value === null || Array.isArray(value)
+    ? []
+    : credentialLikeNames(Object.keys(value as Record<string, unknown>));
 
 const safeCommand = (command: string | undefined): string => {
   const value = command?.trim() ?? "";

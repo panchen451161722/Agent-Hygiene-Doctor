@@ -9,9 +9,9 @@ export interface CodexMcpProjection {
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const strings = (value: unknown): readonly string[] | undefined => Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
-const stringRecord = (value: unknown): Readonly<Record<string, string | undefined>> | undefined => {
+const fieldNames = (value: unknown): readonly string[] | undefined => {
   if (!isRecord(value) || !Object.values(value).every((entry) => typeof entry === "string")) return undefined;
-  return value as Readonly<Record<string, string>>;
+  return Object.keys(value).sort((left, right) => left.localeCompare(right, "en"));
 };
 
 export const classifyMcpUrl = (raw: string): NonNullable<McpFacts["urlClass"]> => {
@@ -33,15 +33,15 @@ const projectServer = (name: string, value: unknown): CodexMcpProjection => {
   if (typeof value.command === "string") {
     const args = value.args === undefined ? [] : strings(value.args);
     if (args === undefined) return { name, status: "unresolved", input: { name, transport: "stdio" } };
-    const env = stringRecord(value.env);
-    return { name, status, input: { name, transport: "stdio", command: value.command, args, ...(env === undefined ? {} : { env }) } };
+    const environmentNames = fieldNames(value.env);
+    return { name, status, input: { name, transport: "stdio", command: value.command, args, ...(environmentNames === undefined ? {} : { environmentNames }) } };
   }
   if (typeof value.url === "string") {
     const declared = value.transport ?? value.type;
     if (declared !== undefined && declared !== "http" && declared !== "sse") return { name, status: "unresolved", input: { name, transport: "stdio" } };
     const transport = declared === "sse" ? "sse" : "http";
-    const headers = stringRecord(value.headers);
-    return { name, status, input: { name, transport, url: value.url, urlClass: classifyMcpUrl(value.url), ...(headers === undefined ? {} : { headers }) } };
+    const headerNames = fieldNames(value.headers);
+    return { name, status, input: { name, transport, url: value.url, urlClass: classifyMcpUrl(value.url), ...(headerNames === undefined ? {} : { headerNames }) } };
   }
   return { name, status: "unresolved", input: { name, transport: "stdio" } };
 };
