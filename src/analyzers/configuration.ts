@@ -1,7 +1,22 @@
 import type { Finding } from "../core/finding.js";
 import type { InventoryItem } from "../core/inventory.js";
 import { stableId } from "../rules/ids.js";
-const finding = (ruleId: string, item: InventoryItem, title: string, severity: Finding["severity"]): Finding => ({ ruleId, instanceId: stableId([ruleId, item.itemId]), severity, category: "inventory", title, impact: title, evidence: [{ kind: "source", source: item.source }], recommendation: "Review the referenced artifact.", manualSteps: [], confidence: "medium", actionable: true });
-export const analyzeInventory = (items: readonly InventoryItem[]): readonly Finding[] => items.filter((item) => item.status === "unresolved").map((item) => finding("unresolved-artifact", item, "Artifact activation is unresolved", "warning"));
-export const analyzeConfiguration = analyzeInventory;
 
+const finding = (item: InventoryItem): Finding => ({
+  ruleId: "unresolved-artifact",
+  instanceId: stableId(["unresolved-artifact", item.itemId]),
+  severity: "warning",
+  category: "configuration",
+  title: "Configuration activation is unresolved",
+  impact: "The configuration cannot be safely evaluated.",
+  evidence: [{ kind: "items", itemIds: [item.itemId] }],
+  recommendation: "Review the referenced configuration artifact.",
+  manualSteps: [],
+  confidence: "medium",
+  actionable: true,
+});
+
+export const analyzeConfiguration = (items: readonly InventoryItem[]): readonly Finding[] => items
+  .filter((item) => item.kind === "configuration" && item.facts.type === "configuration" && item.status === "unresolved")
+  .map(finding)
+  .sort((left, right) => left.instanceId.localeCompare(right.instanceId, "en"));
