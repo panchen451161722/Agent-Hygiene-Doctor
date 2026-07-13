@@ -80,6 +80,8 @@ The check runs ESLint, TypeScript type checking, Vitest, and the production buil
 
 ```bash
 pnpm build
+pnpm verify-pack
+# Optional: inspect the generated archive manually
 pnpm pack --pack-destination .pack
 ```
 
