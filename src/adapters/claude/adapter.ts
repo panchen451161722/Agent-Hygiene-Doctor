@@ -43,6 +43,11 @@ export class ClaudeAdapter implements AgentAdapter {
       await this.addSkills(safeFs, home.root, "skills", "claude-home", "user", inventory);
     }
 
+    const applicationHome = await safeFs.admitRoot("home");
+    if (applicationHome.ok) {
+      const application = await safeFs.readText(applicationHome.root, ".claude.json");
+      if (application.ok) this.addMcpFile(inventory, diagnostics, mcpPrecedence, application.text, { rootId: "home", relativePath: ".claude.json" }, "user", 1);
+    }
     return { agent: this.agent, inventory: this.applyMcpPrecedence(inventory, mcpPrecedence), diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
