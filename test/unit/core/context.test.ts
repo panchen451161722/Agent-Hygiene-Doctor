@@ -20,6 +20,10 @@ describe("createScanContext", () => {
     expect(Object.isFrozen(context.environment)).toBe(true);
   });
 
+  it("uses the documented native Windows Hermes home when no override is set", async () => {
+    const context = await createScanContext({ platform: "win32", paths: win32Dialect, selectedWorkingDirectory: "C:\\repo", projectRoot: "C:\\repo", environment: { USERPROFILE: "C:\\Users\\alice" }, fs: { lstat: async () => null }, toolVersion: "0.1.0" });
+    expect(context.roots.getAbsolutePathForScan("hermes-home")).toBe("C:\\Users\\alice\\AppData\\Local\\hermes");
+  });
   it("rejects Windows relative and root-relative working directories", async () => {
     const base = { platform: "win32" as const, paths: win32Dialect, environment: { USERPROFILE: "C:\\Users\\alice" }, fs: { lstat: async () => null }, toolVersion: "0.1.0" };
     await expect(createScanContext({ ...base, selectedWorkingDirectory: "relative" })).rejects.toThrow();

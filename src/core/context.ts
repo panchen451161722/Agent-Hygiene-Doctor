@@ -28,7 +28,7 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
     { id: "project", kind: "project", alias: "<project>", absolutePath: genericProjectRoot }, { id: "home", kind: "home", alias: "~", absolutePath: userHome },
     { id: "codex-home", kind: "agent-home", alias: "$CODEX_HOME", absolutePath: environment.CODEX_HOME ?? paths.join(userHome, ".codex") },
     { id: "claude-home", kind: "agent-home", alias: "$CLAUDE_CONFIG_DIR", absolutePath: environment.CLAUDE_CONFIG_DIR ?? paths.join(userHome, ".claude") },
-    { id: "hermes-home", kind: "agent-home", alias: "$HERMES_HOME", absolutePath: environment.HERMES_HOME ?? paths.join(userHome, ".hermes") },
+    { id: "hermes-home", kind: "agent-home", alias: "$HERMES_HOME", absolutePath: environment.HERMES_HOME ?? (options.platform === "win32" ? paths.join(environment.LOCALAPPDATA ?? paths.join(userHome, "AppData", "Local"), "hermes") : paths.join(userHome, ".hermes")) },
   ]);
   const limits = deepFreeze({ ...(options.limits ?? SCAN_LIMITS_V1) }) as Readonly<ScanLimitsV1>; const ioSemaphore = options.ioSemaphore ?? new ScanIoSemaphore(limits.maxConcurrentFsOps);
   const safeFs = options.backend === undefined ? undefined : new SafeFileSystem({ backend: options.backend, dialect: paths, semaphore: ioSemaphore, limits, rootRegistry: roots });
