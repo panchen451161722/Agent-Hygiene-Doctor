@@ -25,7 +25,7 @@ export interface PlanRequest {
 }
 
 const userHome = (environment: NodeJS.ProcessEnv): string => process.platform === "win32" ? environment.USERPROFILE ?? environment.HOME ?? "." : environment.HOME ?? environment.USERPROFILE ?? ".";
-const sourceRoot = (rootId: string, project: string, environment: NodeJS.ProcessEnv): string | undefined => {
+export const sourceRoot = (rootId: string, project: string, environment: NodeJS.ProcessEnv): string | undefined => {
   const home = userHome(environment);
   switch (rootId) {
     case "project": return project;

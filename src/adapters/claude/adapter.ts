@@ -3,7 +3,7 @@ import type { AgentId } from "../../core/agent.js";
 import type { ScanContext } from "../../core/context.js";
 import type { Diagnostic } from "../../core/diagnostic.js";
 import type { AdmittedRoot } from "../../core/fs/safe-fs.js";
-import { parseJson } from "../../core/parsers/json.js";
+import { parseJsonc } from "../../core/parsers/json.js";
 import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
 import { item } from "../../inspectors/common.js";
@@ -28,7 +28,7 @@ export class ClaudeAdapter implements AgentAdapter {
     if (approvalHome.ok) {
       const application = await safeFs.readText(approvalHome.root, ".claude.json");
       if (application.ok) {
-        const parsed = parseJson(application.text, { source: { rootId: "home", relativePath: ".claude.json" } });
+        const parsed = parseJsonc(application.text, { source: { rootId: "home", relativePath: ".claude.json" } });
         projectMcpApproved = parsed.ok && hasClaudeProjectMcpApproval(parsed.value, context.genericProjectRoot);
       }
     }
@@ -87,13 +87,13 @@ export class ClaudeAdapter implements AgentAdapter {
   }
 
   private async addMcpFile(context: ScanContext, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], precedenceByItemId: Map<string, number>, text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number, activeStatus: "active" | "unresolved" = "active"): Promise<void> {
-    const parsed = parseJson(text, { source });
+    const parsed = parseJsonc(text, { source });
     if (!parsed.ok) { diagnostics.push({ ...parsed.diagnostic, agent: this.agent }); return; }
     await this.addMcpItems(context, inventory, precedenceByItemId, parsed.value, source, scope, precedence, activeStatus);
   }
 
   private async addSettings(context: ScanContext, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[], precedenceByItemId: Map<string, number>, text: string, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number): Promise<void> {
-    const parsed = parseJson(text, { source });
+    const parsed = parseJsonc(text, { source });
     const facts = { type: "configuration" as const, format: "json" as const, parseStatus: parsed.ok ? "valid" as const : "invalid" as const, precedence };
     if (!parsed.ok) diagnostics.push({ ...parsed.diagnostic, agent: this.agent });
     inventory.push(item({ agent: this.agent, source, scope, status: parsed.ok ? "active" : "unresolved", loading: "always" }, "configuration", source.relativePath, facts));

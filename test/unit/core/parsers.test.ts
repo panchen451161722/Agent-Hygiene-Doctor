@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseJson } from "../../../src/core/parsers/json.js";
+import { parseJson, parseJsonc } from "../../../src/core/parsers/json.js";
 import { parseToml } from "../../../src/core/parsers/toml.js";
 import { parseYaml } from "../../../src/core/parsers/yaml.js";
 
@@ -9,6 +9,13 @@ const source = { rootId: "project", relativePath: "config.json" } as const;
 describe("sanitized bounded parsers", () => {
   it("parses valid JSON and strips an optional BOM", () => {
     expect(parseJson("\uFEFF{\"enabled\":true}", { source })).toEqual({ ok: true, value: { enabled: true } });
+  });
+
+  it("parses bounded JSONC without exposing invalid input", () => {
+    expect(parseJsonc('{ // comment\n  "enabled": true,\n}', { source })).toEqual({ ok: true, value: { enabled: true } });
+    const result = parseJsonc("{ // seeded-super-secret", { source });
+    expect(JSON.stringify(result)).not.toContain("seeded-super-secret");
+    expect(result).toMatchObject({ ok: false, diagnostic: { code: "parse_error", source } });
   });
 
   it("does not expose malformed JSON secrets", () => {
