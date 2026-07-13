@@ -2,6 +2,17 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 1.2.0 - 2026-07-13
+
+### Added
+
+- `agent-hygiene remove --codex`: a real-TTY Codex-only checkbox flow. Selecting items and pressing Enter creates a recoverable operation and immediately quarantines the selection in the same process.
+- `--codex --dry-run` for interactively previewing selected Codex entries without changing agent files.
+
+### Changed
+
+- The package version is now `1.2.0`.
+- Existing operation-ID removal, restore, and automation commands remain supported; the new shortcut still uses the same private quarantine, fingerprint validation, rollback, and restore protections.
 ## 1.1.0 - 2026-07-13
 
 ### Added

@@ -4,9 +4,9 @@ Agent Hygiene CLI is an offline scanner and recovery tool for the local configur
 
 ## Status
 
-Version `1.1.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
+Version `1.2.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
 
-`doctor` is read-only. Version 1.1 adds explicit, recoverable removal and restore commands for eligible Skills and MCP definitions.
+`doctor` is read-only. Version 1.2 adds a Codex-only interactive shortcut for recoverable removal; the existing operation-ID workflow remains available for automation.
 
 ## Requirements
 
@@ -71,13 +71,18 @@ agent-hygiene setup --uninstall --yes
 `remove` provides an explicit, recoverable workflow for user- and project-owned Skills and supported active MCP definitions. `doctor` remains read-only.
 
 ```bash
-# Interactive checkbox selection; this only creates a plan
-agent-hygiene remove
+# Recommended for an interactive Codex cleanup: select with Space, then Enter
+# immediately quarantines selected entries and prints a restore command.
+agent-hygiene remove --codex
 
-# Non-interactive plan generation from exact inventory IDs
+# Preview the selected Codex items without changing agent files
+agent-hygiene remove --codex --dry-run
+
+# Existing generic interaction still creates a plan; scripts can use exact IDs.
+agent-hygiene remove
 agent-hygiene remove --item <item-id> --item <item-id> --dry-run
 
-# Apply only a saved plan, with an explicit confirmation
+# Apply a previously saved plan, with an explicit confirmation
 agent-hygiene remove <operation-id> --yes
 
 # Inspect safe operation summaries, or restore a completed operation
@@ -94,7 +99,7 @@ On Windows the quarantine store is under `%LOCALAPPDATA%\agent-hygiene\quarantin
 ## Safety model
 
 - `doctor` is read-only after startup.
-- `remove` and `restore` are the only additional mutation commands; both require an operation ID and `--yes` before agent files change.
+- `remove` and `restore` are the only additional mutation commands. The Codex-only `remove --codex` interactive path treats the final Enter as confirmation; all other mutations require an operation ID and `--yes`.
 - All reads pass through an injected, bounded filesystem boundary.
 - Paths are segment-checked, canonicalized, and checked for ancestor symlink/junction escapes.
 - Only regular files and directories are traversed; special files are rejected.
@@ -114,7 +119,7 @@ pnpm check
 pnpm verify-pack
 ```
 
-See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-1.1.md](docs/MIGRATION-1.1.md) for upgrade notes.
+See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-1.2.md](docs/MIGRATION-1.2.md) for upgrade notes.
 
 ## License
 

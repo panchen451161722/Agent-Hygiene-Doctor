@@ -66,6 +66,12 @@ describe.sequential("Codex single-step removal shortcut", () => {
     await expect(readFile(subject.config, "utf8")).resolves.toContain("mcp_servers.drop");
   });
 
+  it("refuses the shortcut outside a real terminal", async () => {
+    const captured = runtime();
+    await expect(runRemoveAsync(["--codex"], captured.runtime)).resolves.toBe(2);
+    expect(captured.output().stdout).toBe("");
+    expect(captured.output().stderr).toContain("AH-REMOVE-INVALID-ITEM");
+  });
   it("rejects conflicting shortcut arguments before selection", async () => {
     for (const argv of [["--codex", "--agent", "codex"], ["--codex", "--item", "demo"], ["--codex", "--format", "json"], ["--codex", "--agent-mode"], ["123e4567-e89b-42d3-a456-426614174000", "--yes", "--codex"]]) {
       const captured = runtime();
