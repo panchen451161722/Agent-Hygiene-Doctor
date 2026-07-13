@@ -1,286 +1,349 @@
-# Agent Hygiene MCP 发现与分析完成计划
+# Agent Hygiene MCP 完成计划（当前状态版）
 
-> 可直接交给 Codex、Claude、GPT 等后续模型执行。
+> 修订日期：2026-07-13
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`
 > 分支：`codex/agent-hygiene-v01`
-> 基线提交：`ffacede`
-> 目标：让 Codex、Claude、Hermes 的 MCP 配置进入 inventory、findings 和 terminal/JSON report，并纠正虚假的 complete coverage。
+> 当前基线：`bb102b9`
+> 当前验证基线：32 个测试文件、161 项测试，`pnpm check` 通过。
+> 用途：可直接交给 Codex、Claude、GPT 等后续模型继续执行。
 
-## 0. 当前执行状态（2026-07-13）
+## 1. 目标
 
-已完成并提交：
+完成 Codex、Claude、Hermes 的 MCP 安全发现、确定性分析和发布验收，使 MCP server 能正确进入：
 
-- `965ed21 fix: report honest adapter coverage`：三个 adapter 的已发现但不完整情况改为 `partial`。
-- `fddd354 feat: discover Codex MCP servers`：Codex user/project TOML MCP discovery、安全 fingerprint、credential 字段脱敏、scoped package pin 识别。
-- `3d92ebc feat: report MCP hygiene findings`：未固定 package、明文远程 HTTP、credential 字段、未知 transport 的 MCP findings；doctor 与 `--fail-on warning` 接线。
-- `fadaec6 feat: discover Claude and Hermes MCP servers`：Claude project `.mcp.json` 与 Hermes YAML `mcp_servers` 的基础发现。
+- terminal inventory；
+- JSON/agent-mode report；
+- MCP-specific findings；
+- `--fail-on warning` 退出码；
+- packed package 的真实 `agent-hygiene` bin。
 
-仍未完成：Claude managed/settings precedence、Hermes active profile/manifest、MCP executable metadata resolution、跨 agent duplicate、隐私 sentinel/read-trace、pack install 中 MCP 验收。不要将本计划的 Task F 标记为完成。
-## 1. 开始前必须确认
+任何时候都不能因为发现了一个配置文件就报告 complete coverage。
+
+## 2. 当前真实状态
+
+### 已完成并提交
+
+- `965ed21 fix: report honest adapter coverage`
+  - 三个 adapter 在只覆盖部分 surfaces 时返回 `partial`。
+- `fddd354 feat: discover Codex MCP servers`
+  - Codex user/project TOML `mcp_servers` 基础发现。
+  - stdio、HTTP/SSE、disabled/unresolved 基础投影。
+  - package pin、URL class、安全 fingerprint、credential-like 字段名。
+- `3d92ebc feat: report MCP hygiene findings`
+  - `mcp-package-unpinned`。
+  - `mcp-plaintext-remote`。
+  - `mcp-credential-field`。
+  - `mcp-transport-unknown`。
+  - doctor composition 和 `--fail-on warning`。
+- `fadaec6 feat: discover Claude and Hermes MCP servers`
+  - Claude project `.mcp.json` 基础发现。
+  - Claude settings 中 `mcpServers` 基础投影。
+  - Hermes `config.yaml` 中 `mcp_servers` 基础发现。
+
+### 部分完成，不能标记完成
+
+- Coverage：已改为 partial，但 read/limit/unsafe failures 仍可能被 adapter 静默忽略。
+- Codex：基础 MCP 已发现，但 trust、重复 server、完整 fixtures/read trace 未完成。
+- Claude：project `.mcp.json` 已发现，managed/local/user precedence 和受限 `.claude.json` 未完成。
+- Hermes：config MCP 已发现，active profile、manifest、OAuth/state 隔离未完成。
+- Analyzer：已有四条 MCP 规则，但 finding 唯一性、typed analyzer 隔离、command resolution、跨 agent duplicate 未完成。
+- Privacy：inspector 输出不含值，但 env/header 原始值仍会进入 inspector 内存，不满足“进入 inspector 前丢弃值”的边界。
+- Pack：`scripts/verify-pack.mjs` 仍只运行 `dist/cli/main.js`，没有安装 tarball 并运行真实 bin。
+
+## 3. 不可违反的安全边界
+
+- `doctor` 不访问网络、不执行子进程、不运行 MCP command、不调用 package runner。
+- 所有内容读取必须经过共享 `SafeFileSystem` 和 semaphore。
+- 不读取或输出 token、secret、password、Authorization、环境变量值、header 值或完整 MCP URL。
+- report 不得包含绝对路径、raw parser error、stack、配置原文。
+- env/header 的值必须在 projection 层丢弃；inspector 只能接收字段名。
+- URL 只能进入受控 classifier/fingerprint；report 不得保存 raw URL。
+- partial/unknown coverage 不能产生 absence-based finding。
+- projection helper 单测不能代替真实 adapter discovery、trace 和 CLI 测试。
+
+## 4. 下一模型的执行顺序
+
+必须按以下顺序执行：
+
+1. Task G：MCP 正确性加固。
+2. Task H：Claude/Hermes source 与 precedence 完成。
+3. Task I：metadata command resolution 和 duplicate analysis。
+4. Task J：privacy/no-write/read-trace 验收。
+5. Task K：packed bin 与最终 MCP 验收。
+
+不要从旧 Task A 重新开发；已完成代码必须先审计后复用。
+
+## 5. Task G：MCP 正确性加固（最高优先级）
+
+### G1. 修复 finding instance ID 冲突
+
+当前风险：`src/analyzers/mcp.ts` 的 finding evidence 只有配置文件 SourceRef。同一配置文件内两个 server 命中同一 rule 时，`buildReport` 可能生成相同 instance ID。
+
+修改：
+
+- `src/analyzers/mcp.ts`
+- `test/unit/analyzers/mcp.test.ts`
+- `test/contract/report-schema.test.ts`
+- `test/integration/doctor-cli.test.ts`
+
+要求：
+
+- [ ] 每个 MCP finding 的 evidence 包含唯一 MCP item identity。
+- [ ] 优先使用 `{ kind: "items", itemIds: [item.itemId] }`；如使用 field evidence，字段名必须稳定且不含 secret。
+- [ ] 同一 config 内两个 unpinned MCP 产生两个不同 findings。
+- [ ] report builder 不抛 duplicate generated finding id。
+- [ ] 输入顺序变化不改变最终 finding ID 和排序。
+
+建议提交：`fix: preserve unique MCP finding identities`
+
+### G2. 限制 analyzer 只处理对应 facts
+
+当前风险：`analyzeConfiguration` 仍是通用 unresolved analyzer，可能对 unresolved MCP 再产生 `unresolved-artifact`，与 `mcp-transport-unknown` 重叠。
+
+修改：
+
+- `src/analyzers/configuration.ts`
+- `src/analyzers/mcp.ts`
+- 其他仍使用通用占位实现的 analyzers
+- 对应 unit tests
+
+要求：
+
+- [ ] configuration analyzer 只处理 `facts.type === "configuration"`。
+- [ ] MCP analyzer 只处理 `facts.type === "mcp"`。
+- [ ] disabled MCP 不产生 activation finding。
+- [ ] unresolved MCP 只产生设计规定的 MCP finding，不重复产生 generic finding。
+- [ ] 每个 analyzer 有非目标 facts 的反例测试。
+
+建议提交：`fix: isolate analyzers by inventory facts`
+
+### G3. 在 inspector 前丢弃 credential values
+
+当前风险：`projectMcpServers` 把 env/header string map 原样传给 `inspectMcp`，虽未进入 report，但违反隐私边界。
+
+修改：
+
+- `src/adapters/codex/mcp.ts`
+- `src/inspectors/mcp.ts`
+- `src/rules/mcp-fingerprint.ts`
+- inspector/adapter privacy tests
+
+要求：
+
+- [ ] projection 只输出 `environmentNames` / `headerNames` 或等价闭合字段。
+- [ ] `McpInput` 不再接受 credential values。
+- [ ] fingerprint 只使用字段名，不使用值。
+- [ ] seeded secret 在 inspector 输入之后不可访问。
+- [ ] JSON.stringify(adapter result/finding/report) 均不含 seeded secret。
+
+建议提交：`fix: discard MCP credential values before inspection`
+
+### G4. 抽离共享 MCP projection
+
+当前问题：Claude/Hermes 从 `src/adapters/codex/mcp.ts` 导入通用函数，形成错误依赖方向。
+
+要求：
+
+- [ ] 将通用 shape validation、URL classifier、safe projection 移到 `src/adapters/shared/mcp.ts` 或等价共享模块。
+- [ ] `src/adapters/codex/mcp.ts` 只保留 Codex-specific key/precedence/trust 映射。
+- [ ] Claude/Hermes 不再 import Codex adapter 模块。
+- [ ] 公共类型使用中性名称，不再叫 `CodexMcpProjection`。
+
+建议提交：`refactor: share MCP projection across adapters`
+
+### G5. 严格验证 MCP shape
+
+补齐测试：
+
+- [ ] args 不是字符串数组 -> unresolved。
+- [ ] env/header 不是闭合字符串 map -> unresolved，而不是静默忽略。
+- [ ] command 与 url 同时存在 -> unresolved。
+- [ ] 空 command、空 server name -> unresolved。
+- [ ] unsupported transport/scheme -> unresolved。
+- [ ] localhost、127.0.0.0/8、`[::1]` -> loopback。
+- [ ] HTTPS remote -> tls。
+- [ ] HTTP remote -> plaintext-remote。
+- [ ] disabled malformed server 仍保留且不产生 activation warning。
+- [ ] unknown keys 的处理与设计规格一致并有测试。
+
+建议提交：`test: close MCP projection edge cases`
+
+## 6. Task H：完成 Claude 与 Hermes MCP 来源
+
+### Claude
+
+修改：
+
+- `src/adapters/claude/adapter.ts`
+- Claude settings/roots helper
+- `test/contract/claude-adapter.test.ts`
+- POSIX/Windows fixtures
+
+要求：
+
+- [x] project `.mcp.json` 基础发现。
+- [x] settings 中 `mcpServers` 基础投影。
+- [ ] managed MCP/settings 来源。
+- [ ] local project > project > user precedence；managed 按设计规格覆盖。
+- [ ] 受限读取 `.claude.json` 的 MCP 部分。
+- [ ] 不读取 history、transcripts、snapshots、memory、cache。
+- [ ] approval unknown 的 project MCP 标为 unresolved。
+- [ ] 同名 server 不被静默覆盖，保留各自 source/status。
+
+### Hermes
+
+修改：
+
+- `src/adapters/hermes/adapter.ts`
+- Hermes config/profile helper
+- `test/contract/hermes-adapter.test.ts`
+- POSIX/Windows fixtures
+
+要求：
+
+- [x] `config.yaml` 的 `mcp_servers` 基础发现。
+- [x] enabled false 基础状态投影。
+- [ ] sticky `active_profile` 与 immediate candidate profiles。
+- [ ] 可选 MCP manifests 经过 SafeFileSystem。
+- [ ] `.env` 只能产生 unresolved activation，不读取值。
+- [ ] 不读取 OAuth/state/memory 文件。
+- [ ] profile precedence 和 duplicate server 有 contract tests。
+
+建议提交：
+
+- `feat: complete Claude MCP precedence`
+- `feat: complete Hermes MCP profiles`
+
+## 7. Task I：command metadata 与 duplicate analysis
+
+### I1. Metadata-only command resolution
+
+当前 `commandResolution` 基本为 unknown。
+
+要求：
+
+- [ ] 新增安全的 metadata-only executable lookup API。
+- [ ] 不执行 command。
+- [ ] Windows 支持 PATH/PATHEXT；POSIX 支持 executable metadata。
+- [ ] 绝对路径不得进入 report。
+- [ ] 只输出 resolved/not-found/unknown。
+- [ ] unknown 不产生 `mcp-command-not-found`。
+- [ ] confirmed not-found 才产生 warning。
+
+建议提交：`feat: resolve MCP commands without execution`
+
+### I2. Cross-source/cross-agent duplicate
+
+要求：
+
+- [ ] 使用 endpointFingerprint 比较 active MCP。
+- [ ] disabled/unresolved 不参与 active duplicate warning。
+- [ ] 同一 server 在 user/project/agent 间重复时保留所有 inventory items。
+- [ ] finding evidence 使用 item IDs，保证稳定和唯一。
+- [ ] 输入顺序变化不影响结果。
+
+建议提交：`feat: detect duplicate active MCP endpoints`
+
+## 8. Task J：安全与无副作用验收
+
+新增 integration tests：
+
+- [ ] seeded token 同时放入 env、headers、URL query、args opaque value。
+- [ ] terminal、JSON、agent-mode、findings、snapshots 均不含 seeded token。
+- [ ] fixture 扫描前后字节 hash 完全一致。
+- [ ] read trace 证明 auth、sessions、logs、history、transcripts、OAuth/state、memory 未读取。
+- [ ] 不调用网络、不生成子进程、不执行 discovered command。
+- [ ] unsafe reference、limit exceeded、read failed 映射为 cataloged diagnostic，并降低 coverage。
+- [ ] 一个 adapter 失败不影响其他 adapter。
+
+建议提交：`test: verify MCP privacy and read-only boundaries`
+
+## 9. Task K：packed package 与真实 bin 验收
+
+当前 `scripts/verify-pack.mjs` 不足：它只直接运行 `dist/cli/main.js`。
+
+重写要求：
+
+- [ ] `pnpm pack` 生成 tarball。
+- [ ] 安装 tarball 到临时目录。
+- [ ] 运行安装后的 `agent-hygiene` bin，而不是源码 dist。
+- [ ] 验证 terminal 能显示 MCP inventory。
+- [ ] 验证 `--format json` 和 `--agent-mode` schema-valid。
+- [ ] 验证 MCP warning 下 `--fail-on warning` 返回 1。
+- [ ] 验证只有 warning 时默认 `--fail-on error` 返回 0。
+- [ ] 验证 stdout/stderr 精确边界。
+- [ ] 验证 packed 输出不含 seeded secret。
+- [ ] 验证 tarball files allowlist。
+
+实际 fixture 路径统一使用：
+
+```text
+test/fixtures/mcp-project
+```
+
+不要继续引用不存在的 `test/fixtures/codex/mcp-valid`，除非先创建并迁移所有测试。
+
+建议提交：`test: verify packed MCP doctor workflow`
+
+## 10. 每阶段验证纪律
 
 ```powershell
 git status --short
-git log --oneline -5
-pnpm check
-agent-hygiene doctor --agent codex
-```
-
-预期基线：
-
-- 工作树除本计划外应干净。
-- `pnpm check` 通过，当前约为 31 个测试文件、150 项测试。
-- Codex terminal report 能显示 skills 和 `config.toml`，但没有 `kind: "mcp"`。
-- Codex adapter 只验证 TOML 可解析，然后把整个文件投影成一个 configuration item。
-- `src/analyzers/mcp.ts` 仍是通用 unresolved 占位实现。
-- adapter 用 `inventory.length > 0 ? "complete" : "unknown"` 计算 coverage，这是错误的：未扫描 MCP、hooks、plugins 时不得称为 complete。
-
-如果基线已经变化，应先重新审计，不要覆盖后续模型已完成的实现。
-
-## 2. 不可违反的边界
-
-- `doctor` 不访问网络、不启动子进程、不执行 MCP command、不调用 package runner。
-- 所有文件读取必须经过共享 `SafeFileSystem` 和 semaphore。
-- 不读取或输出 token、secret、password、Authorization header、环境变量值或完整 MCP URL。
-- report 不得包含主机绝对路径、原始 parser error、stack、配置原文。
-- MCP env/headers 只允许保留字段名；凭据值必须在 inspector 之前丢弃。
-- HTTP/SSE 只报告 URL class 和安全 fingerprint，不报告 raw URL。
-- 未实现的发现面必须标为 partial/unknown，不能因为发现了一个配置文件就标为 complete。
-- projection helper 单测不能代替真实 adapter discovery 测试。
-
-## 3. 当前可复用代码
-
-- `src/inspectors/mcp.ts`：已有 `inspectMcp`，但需要补齐 `packageInvocation` facts。
-- `src/rules/mcp-fingerprint.ts`：已有安全 command/args/URL shape 和 fingerprint。
-- `src/rules/package-spec.ts`：已有 npx/npm exec/pnpm dlx/yarn dlx/bunx pin 识别。
-- `src/core/inventory.ts`：已有 `McpFacts`。
-- `src/core/parsers/{toml,json,yaml}.ts`：已有受限解析器。
-- `src/core/fs/safe-fs.ts`：所有真实发现必须复用。
-- `src/reporters/terminal.ts`：出现 MCP item 后会自动显示。
-- `src/core/report.ts`：负责稳定 ID、排序、summary 和 schema-valid report。
-
-## 4. Task A：先纠正 coverage 语义
-
-修改：
-
-- `src/adapters/codex/adapter.ts`
-- `src/adapters/claude/adapter.ts`
-- `src/adapters/hermes/adapter.ts`
-- `test/contract/live-adapters.test.ts`
-- 各 agent contract tests
-
-工作：
-
-- [ ] 移除 `inventory.length > 0 ? "complete" : "unknown"`。
-- [ ] adapter 尚未覆盖规格全部 surfaces 时返回 `partial`；完全未检测到 root/artifact 时返回 `unknown`。
-- [ ] parse/read/limit/unsafe diagnostic 必须降低 coverage。
-- [ ] 测试证明“只发现 config 或 skill”不会得到 complete。
-- [ ] terminal 显示 `codex: partial (partial)`，直到完整 surface 验收完成。
-
-提交：`fix: report honest adapter coverage`
-
-## 5. Task B：定义闭合 Codex MCP projection
-
-修改/新增：
-
-- `src/adapters/codex/config.ts`
-- 新增 `src/adapters/codex/mcp.ts`
-- `src/inspectors/mcp.ts`
-- `test/unit/inspectors/inspectors.test.ts`
-- `test/contract/codex-adapter.test.ts`
-
-从已安全解析的 TOML 对象读取 `mcp_servers` table。每个直属 key 是 server name。只接受闭合字段：
-
-- stdio：`command: string`、`args?: string[]`、`env?: object`、`enabled?: boolean`
-- HTTP/SSE：`url: string`、`headers?: object`、`enabled?: boolean`
-- transport 不能静态确定时创建 unresolved MCP item，不能丢弃或猜测。
-
-输出要求：
-
-- [ ] 每个 server 产生独立 `InventoryItem`，`kind: "mcp"`，name 使用配置 key，而不是 command。
-- [ ] SourceRef 指向配置文件；用稳定 name/itemId 区分 server，不伪造文件路径。
-- [ ] `enabled === false` 为 disabled；有效且启用为 active；形状不明为 unresolved。
-- [ ] stdio facts：transport、endpointFingerprint、commandResolution、credentialLikeFields、packageInvocation。
-- [ ] HTTP/SSE facts：transport、endpointFingerprint、credentialLikeFields、urlClass。
-- [ ] `inspectMcp` 补齐 `packageInvocation`：exact/unpinned/not-applicable/unknown。
-- [ ] name、facts、fingerprint 都不能含 secret 或绝对路径。
-- [ ] 输入顺序变化不改变最终 report 顺序或 ID。
-
-URL 分类：
-
-- loopback：localhost、127.0.0.0/8、::1。
-- tls：非 loopback HTTPS。
-- plaintext-remote：非 loopback HTTP。
-- unknown：URL 无法安全解析或 scheme 不支持。
-
-command resolution：
-
-- 不执行 command。
-- 仅允许 metadata-only PATH 检查；若安全层尚无 API，先报告 unknown，不能绕过 `SafeFileSystem`。
-- 绝对 executable path 不得进入 report。
-
-提交：`feat: project Codex MCP inventory`
-
-## 6. Task C：接入真实 Codex adapter
-
-修改/新增：
-
-- `src/adapters/codex/adapter.ts`
-- `test/contract/live-adapters.test.ts`
-- `test/fixtures/codex/mcp-valid/config.toml`
-- `test/fixtures/codex/mcp-invalid/config.toml`
-- privacy sentinel fixtures
-
-工作：
-
-- [ ] user `codex-home:config.toml` 的 MCP servers 进入 inventory。
-- [ ] project `.codex/config.toml` 的 MCP servers 进入 inventory。
-- [ ] project/user precedence 保留，不能静默合并同名 server。
-- [ ] trust 未知时 project MCP 标为 unresolved，除非设计规格明确允许 active。
-- [ ] parse error 产生 configuration item、diagnostic，但不产生猜测的 MCP。
-- [ ] disabled server 保留在 inventory。
-- [ ] credential-like env/header 只显示字段名。
-- [ ] seeded secret 不得出现在 terminal、JSON、snapshot、fingerprint serialization。
-- [ ] read trace 证明 auth、sessions、logs、history 未被读取。
-
-必须覆盖：stdio、精确版本 npx、未固定 npx、disabled、HTTPS、远程 HTTP、loopback、credential env/header、malformed shape、user/project 同名 server。
-
-提交：`feat: discover Codex MCP servers`
-
-## 7. Task D：实现专用 MCP analyzer 与 catalog rules
-
-修改/新增：
-
-- `src/analyzers/mcp.ts`
-- `src/rules/catalog.ts`
-- `src/rules/manual-steps.ts`
-- `test/unit/analyzers/mcp.test.ts`
-- report schema tests
-
-最小闭合规则集（如设计规格已有固定 ID，以规格为准）：
-
-- `mcp-command-not-found`：stdio command 静态确认不存在，warning。
-- `mcp-package-unpinned`：package runner 使用未固定 package，warning。
-- `mcp-credential-field`：发现 credential-like env/header 字段名，info 或 warning，证据不得含值。
-- `mcp-plaintext-remote`：非 loopback HTTP，warning。
-- `mcp-transport-unknown`：无法安全确定 transport，warning。
-- `duplicate-active`：同 fingerprint 的 active MCP 跨配置/agent 重复，warning。
-
-约束：
-
-- [ ] 只分析 `facts.type === "mcp"`，不能复用 unresolved 通用占位实现。
-- [ ] disabled MCP 不产生 activation-based warning。
-- [ ] commandResolution unknown 不产生 command-not-found。
-- [ ] coverage partial/unknown 时不产生 absence-based finding。
-- [ ] findings 输入顺序无关，evidence 稳定，instanceId 由 report builder 生成。
-- [ ] recommendation/manualSteps 不含绝对路径、secret、raw command line。
-- [ ] catalog 每个新增 rule 至少一个正例和反例。
-
-提交：`feat: analyze MCP hygiene deterministically`
-
-## 8. Task E：doctor composition 接入 MCP analyzer
-
-修改：
-
-- `src/cli/doctor.ts`
-- 必要时新增 `src/analyzers/index.ts`
-- `test/integration/doctor-cli.test.ts`
-- `test/contract/report-schema.test.ts`
-
-工作：
-
-- [ ] doctor 不再只调用 `analyzeConfiguration`。
-- [ ] composition 至少调用 configuration + MCP analyzer，并稳定合并结果。
-- [ ] `--fail-on warning` 在 MCP warning 存在时返回 1。
-- [ ] 默认 `--fail-on error` 在只有 MCP warning 时返回 0。
-- [ ] terminal 显示 MCP inventory、finding、evidence、recommendation。
-- [ ] JSON/agent-mode 保持 schema-valid，成功时 stderr 为空。
-- [ ] `--agent codex` 只出现 Codex adapter/inventory/findings。
-
-预期示例：
-
-```text
-[codex] mcp github — active, user — codex-home:config.toml
-[warning] MCP package invocation is not pinned (mcp-package-unpinned)
-```
-
-提交：`feat: report MCP findings from doctor`
-
-## 9. Task F：Claude 与 Hermes MCP discovery
-
-Codex 完成并稳定后再复用 projection，不要同时修改三个 adapter 的公共类型。
-
-Claude：
-
-- [ ] 读取 project `.mcp.json`。
-- [ ] 读取 managed MCP/settings 中规格允许的 MCP 部分。
-- [ ] 受限投影 `.claude.json`，不得读取 history、transcripts、cache。
-- [ ] managed/project/user precedence 有 contract tests。
-
-Hermes：
-
-- [ ] 从 `config.yaml` 投影 `mcp_servers`。
-- [ ] 处理 enabled false 和 active profile。
-- [ ] 可选 MCP manifests 必须经过 SafeFileSystem。
-- [ ] OAuth/state/`.env` 值不得读取或输出。
-
-提交：
-
-- `feat: discover Claude MCP servers`
-- `feat: discover Hermes MCP servers`
-
-## 10. 测试和验证顺序
-
-每个任务严格执行：
-
-```powershell
 pnpm typecheck
-pnpm exec vitest run <本任务目标测试>
+pnpm exec vitest run <目标测试>
 pnpm lint
 pnpm check
 git diff --check
 ```
 
-最终人工验证：
+每个阶段：
+
+- 先确认失败测试的原因正确；
+- 只实现该阶段功能；
+- 独立提交；
+- 更新本计划状态；
+- 报告测试数量、commit hash、仍未完成项。
+
+## 11. 最终人工验收
 
 ```powershell
 pnpm build
 agent-hygiene doctor --agent codex
 agent-hygiene doctor --agent codex --format json
-agent-hygiene doctor --project ./test/fixtures/codex/mcp-valid --agent codex
-agent-hygiene doctor --project ./test/fixtures/codex/mcp-valid --agent codex --fail-on warning
+agent-hygiene doctor --project ./test/fixtures/mcp-project --agent codex
+agent-hygiene doctor --project ./test/fixtures/mcp-project --agent codex --fail-on warning
+agent-hygiene doctor --agent claude
+agent-hygiene doctor --agent hermes
 agent-hygiene doctor --agent-mode
+node scripts/verify-pack.mjs
 ```
 
-最终还必须证明：
+## 12. MCP 阶段完成定义
 
-- JSON 通过 `schema/report-v1.schema.json`。
-- terminal/JSON 均不含 seeded secret。
-- 扫描 fixture 前后文件哈希一致。
-- 无网络调用、子进程、写入。
-- packed tarball 的真实 bin 能显示 MCP。
+只有全部满足才能宣布完成：
 
-## 11. 完成定义
-
-只有全部满足才能宣布 MCP 阶段完成：
-
-- [ ] Codex、Claude、Hermes 的规定 MCP 来源都被真实发现。
+- [ ] Codex、Claude、Hermes 的规定 MCP 来源被真实发现。
 - [ ] stdio/http/sse/disabled/unresolved 状态正确。
 - [ ] MCP inventory 在 terminal 和 JSON 中可见。
-- [ ] pinning、credential field、plaintext remote、command resolution 规则确定性工作。
+- [ ] 同一配置内多个同规则 findings ID 唯一。
+- [ ] typed analyzers 不重复分析其他 facts。
+- [ ] credential values 在 inspector 前已丢弃。
+- [ ] package pin、URL class、command resolution、duplicate rules 确定性工作。
 - [ ] `--fail-on` 对 MCP findings 的退出码正确。
-- [ ] 所有 secret/privacy sentinel 测试通过。
-- [ ] 未实现 surfaces 不再报告 complete coverage。
-- [ ] `pnpm check`、pack install、真实 bin 验证通过。
-- [ ] 工作树干净，每个任务独立提交。
+- [ ] privacy sentinel、read trace、no-write、no-network、no-subprocess 测试通过。
+- [ ] 未实现 surfaces 不报告 complete coverage。
+- [ ] packed tarball 安装与真实 bin 验证通过。
+- [ ] `pnpm check` 全绿，Git 工作树干净。
 
-## 12. 给下一模型的启动指令
+## 13. 给下一模型的启动指令
 
 ```text
 在 D:\project\agent-hygiene\.worktrees\agent-hygiene-v01 工作。
 完整阅读 docs/superpowers/plans/2026-07-13-agent-hygiene-mcp-completion.md、
-docs/superpowers/plans/2026-07-12-agent-hygiene-v1-completion.md 和对应设计规格。
-从第一个未完成 Task 开始，先运行 git status、git log 和 pnpm check。
-严格测试先行、每阶段独立提交。所有读取必须走 SafeFileSystem；不得网络访问、执行 MCP command、输出 secret/绝对路径。
-不要把发现 config.toml 当作 MCP 已完成，不要在未覆盖全部 surfaces 时报告 complete coverage。
-每阶段报告变更、测试数量、提交 hash 和仍未完成项。
+docs/superpowers/plans/2026-07-12-agent-hygiene-v1-completion.md 和设计规格。
+先运行 git status --short、git log --oneline -8、pnpm check。
+当前 MCP 基线到 bb102b9；不要重复旧 Task A-E。
+从 Task G1 开始：先修复同一配置内多个同规则 MCP findings 的 instance ID 冲突，再处理 typed analyzer、credential value 预脱敏和共享 projection。
+所有读取必须走 SafeFileSystem；不得访问网络、执行 MCP command、输出 secret 或绝对路径。
+严格测试先行，每个阶段独立提交，并更新计划状态、测试数量、commit hash 和剩余事项。
 ```
