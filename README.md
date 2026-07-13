@@ -1,23 +1,36 @@
 # Agent Hygiene CLI
 
-Agent Hygiene CLI is a deterministic, read-only scanner for the local configuration surfaces of Codex, Claude Code, and Hermes. It inventories documented skills, instructions, MCP definitions, extensions, and configuration files, then emits stable hygiene diagnostics.
+Agent Hygiene CLI is an offline scanner and recovery tool for the local configuration surfaces of Codex, Claude Code, and Hermes. It inventories documented Skills, instructions, MCP definitions, extensions, and configuration files, then emits stable hygiene diagnostics.
 
 ## Status
 
-Version `0.1.0` is an implementation preview. The `doctor` command supports terminal and JSON reports, agent filtering, explicit project roots, machine-readable agent mode, and configurable failure thresholds. Broader agent-specific discovery and release validation are still being expanded.
+Version `1.1.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
+
+`doctor` is read-only. Version 1.1 adds explicit, recoverable removal and restore commands for eligible Skills and MCP definitions.
 
 ## Requirements
 
 - Node.js `22` or newer
-- pnpm
+- pnpm `10` or newer for development
 
-## Install and build
+## Local install and verification
+
+From a repository checkout:
 
 ```bash
-npm install -g agent-hygiene-cli
+pnpm install --frozen-lockfile
+pnpm check
+node dist/cli/main.js doctor --agent codex
+node dist/cli/main.js doctor --format json
 ```
 
-The package exposes one executable: `agent-hygiene`.
+To verify the packed artifact locally, without publishing it:
+
+```bash
+pnpm verify-pack
+```
+
+After `pnpm build`, the executable is available as `node dist/cli/main.js`. If you deliberately want a global installation from this checkout, use `npm install -g .`; this installs the local package, not an npm-registry release.
 
 ## Commands
 
@@ -34,8 +47,6 @@ agent-hygiene doctor --fail-on warning
 agent-hygiene doctor --agent-mode
 ```
 
-Useful options:
-
 | Option | Meaning |
 | --- | --- |
 | `--agent <codex|claude|hermes>` | Limit the scan; repeatable. |
@@ -47,7 +58,7 @@ Useful options:
 
 ### Setup
 
-`setup` is the explicit write command for the optional launcher skill. Use `--dry-run` to preview actions. Write operations require explicit confirmation with `--yes`; `--force` and `--uninstall` are available for the corresponding lifecycle actions.
+`setup` is the explicit write command for the optional launcher Skill. Use `--dry-run` to preview actions. Write operations require explicit confirmation with `--yes`; `--force` and `--uninstall` are available for the corresponding lifecycle actions.
 
 ```bash
 agent-hygiene setup --dry-run
@@ -57,7 +68,7 @@ agent-hygiene setup --uninstall --yes
 
 ### Safe remove and restore
 
-Version 1.1 adds an explicit, recoverable removal workflow for user- and project-owned Skills and supported active MCP definitions. `doctor` remains read-only.
+`remove` provides an explicit, recoverable workflow for user- and project-owned Skills and supported active MCP definitions. `doctor` remains read-only.
 
 ```bash
 # Interactive checkbox selection; this only creates a plan
@@ -79,6 +90,7 @@ Removal moves a whole Skill directory or the selected MCP configuration node int
 Only user/project entries in an active or disabled state are eligible. Managed, plugin-owned, external, unresolved, and candidate entries are displayed in interactive mode but cannot be selected. JSON/JSONC, YAML, and TOML edits are source-range edits; unsupported syntax is refused rather than reformatted.
 
 On Windows the quarantine store is under `%LOCALAPPDATA%\agent-hygiene\quarantine` (falling back to `%USERPROFILE%`); on POSIX it is under `~/.agent-hygiene/quarantine`. Operation manifests are private local recovery metadata and commands never display backup content or physical source paths.
+
 ## Safety model
 
 - `doctor` is read-only after startup.
@@ -99,17 +111,11 @@ Run the complete local verification suite:
 
 ```bash
 pnpm check
-```
-
-The check runs ESLint, TypeScript type checking, Vitest, and the production build. To inspect package contents:
-
-```bash
-pnpm build
 pnpm verify-pack
-# Optional: inspect the generated archive manually
-pnpm pack --pack-destination .pack
 ```
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-1.1.md](docs/MIGRATION-1.1.md) for upgrade notes.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).

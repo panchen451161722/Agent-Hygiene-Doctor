@@ -6,3 +6,5 @@ coverage/
 .vitest/
 .pnpm-store/
 *.tsbuildinfo
+.pack/
+.local-install/

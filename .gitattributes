@@ -1,0 +1,10 @@
+# Keep repository text deterministic across Windows and POSIX checkouts.
+* text=auto eol=lf
+
+# Preserve binary assets exactly when they are added in the future.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.tgz binary

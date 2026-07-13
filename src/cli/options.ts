@@ -168,7 +168,7 @@ export function parseCliOptions(argv: readonly string[]): CliParseResult {
   const output: string[] = [];
   const program = new Command()
     .name("agent-hygiene")
-    .version("0.1.0")
+    .version("1.1.0")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => output.push(text),

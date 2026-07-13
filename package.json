@@ -1,6 +1,17 @@
 {
   "name": "agent-hygiene-cli",
-  "version": "0.1.0",
+  "version": "1.1.0",
+  "description": "Offline hygiene scanner and safe recovery workflow for local AI-agent configuration.",
+  "license": "MIT",
+  "author": "panchen",
+  "keywords": [
+    "ai-agents",
+    "codex",
+    "claude-code",
+    "mcp",
+    "skills",
+    "configuration"
+  ],
   "type": "module",
   "bin": {
     "agent-hygiene": "./dist/cli/main.js"
@@ -9,7 +20,8 @@
     "dist",
     "schema",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

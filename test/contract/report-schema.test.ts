@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { buildReport } from "../../src/core/report.js";
 
 const makeReport = () => buildReport({
-  tool: { name: "agent-hygiene-cli", version: "0.1.0" },
+  tool: { name: "agent-hygiene-cli", version: "1.1.0" },
   scan: {
     startedAt: "2026-07-10T00:00:00.000Z",
     durationMs: 1,

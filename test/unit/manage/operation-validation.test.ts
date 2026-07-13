@@ -10,7 +10,7 @@ const directories: string[] = [];
 const operation = (): RemovalOperation => ({
   schemaVersion: OPERATION_SCHEMA_VERSION,
   operationId: "123e4567-e89b-42d3-a456-426614174000",
-  toolVersion: "0.1.0",
+  toolVersion: "1.1.0",
   createdAt: "2026-07-13T00:00:00.000Z",
   status: "planned",
   targets: [{ itemId: "item", agent: "codex", kind: "skill", name: "demo", scope: "user", source: { rootId: "home", relativePath: ".agents/skills/demo/SKILL.md" }, absolutePath: "C:/private/demo", rootPath: "C:/private", preImageHash: "a".repeat(64), plannedPostImageHash: "b".repeat(64), backupPath: "backups/skill-0001" }],

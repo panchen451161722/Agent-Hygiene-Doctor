@@ -64,7 +64,7 @@ const diagnostic = (overrides: Partial<Diagnostic> = {}): Diagnostic => {
 };
 
 const baseInput = () => ({
-  tool: { name: "agent-hygiene-cli" as const, version: "0.1.0" },
+  tool: { name: "agent-hygiene-cli" as const, version: "1.1.0" },
   scan: {
     startedAt: "2026-07-10T00:00:00.000Z",
     durationMs: 12,
