@@ -33,7 +33,7 @@ export class ClaudeAdapter implements AgentAdapter {
       await this.addSkills(safeFs, home.root, "skills", "claude-home", "user", inventory);
     }
 
-    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 ? "complete" : "unknown" };
+    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
   private async addSkills(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, directory: string, rootId: string, scope: "user" | "project", inventory: ReturnType<typeof item>[]): Promise<void> {

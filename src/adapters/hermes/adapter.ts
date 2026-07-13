@@ -29,7 +29,7 @@ export class HermesAdapter implements AgentAdapter {
       inventory.push(item({ agent: this.agent, source, scope: "user", status: parsed.ok ? "active" : "unresolved", loading: "always" }, "configuration", source.relativePath, { type: "configuration", format: "yaml", parseStatus: parsed.ok ? "valid" : "invalid", precedence: 1 }));
     }
     await this.addSkills(safeFs, root.root, inventory);
-    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 ? "complete" : "unknown" };
+    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
   private async addSkills(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, inventory: ReturnType<typeof item>[]): Promise<void> {

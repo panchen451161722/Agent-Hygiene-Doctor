@@ -61,7 +61,7 @@ export class CodexAdapter implements AgentAdapter {
       }
     }
 
-    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 ? "complete" : "unknown" };
+    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
   private addConfig(
