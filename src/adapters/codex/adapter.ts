@@ -3,6 +3,7 @@ import type { AgentId } from "../../core/agent.js";
 import type { ScanContext } from "../../core/context.js";
 import type { Diagnostic } from "../../core/diagnostic.js";
 import { parseToml } from "../../core/parsers/toml.js";
+import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
@@ -33,17 +34,25 @@ export class CodexAdapter implements AgentAdapter {
           ));
         }
       }
-      const projectConfig = await safeFs.readText(projectRoot.root, ".codex/config.toml");
+      const projectConfigSource = { rootId: "project", relativePath: ".codex/config.toml" } as const;
+      const projectConfig = await safeFs.readText(projectRoot.root, projectConfigSource.relativePath);
       if (projectConfig.ok) {
-        await this.addConfig(context, inventory, diagnostics, projectConfig.text, { rootId: "project", relativePath: ".codex/config.toml" }, "project", 2);
+        await this.addConfig(context, inventory, diagnostics, projectConfig.text, projectConfigSource, "project", 2);
+      } else {
+        const diagnostic = safeFsDiagnostic(this.agent, projectConfigSource, projectConfig);
+        if (diagnostic !== undefined) diagnostics.push(diagnostic);
       }
     }
 
     const codexHome = await safeFs.admitRoot("codex-home");
     if (codexHome.ok) {
-      const config = await safeFs.readText(codexHome.root, "config.toml");
+      const configSource = { rootId: "codex-home", relativePath: "config.toml" } as const;
+      const config = await safeFs.readText(codexHome.root, configSource.relativePath);
       if (config.ok) {
-        await this.addConfig(context, inventory, diagnostics, config.text, { rootId: "codex-home", relativePath: "config.toml" }, "user", 1);
+        await this.addConfig(context, inventory, diagnostics, config.text, configSource, "user", 1);
+      } else {
+        const diagnostic = safeFsDiagnostic(this.agent, configSource, config);
+        if (diagnostic !== undefined) diagnostics.push(diagnostic);
       }
     }
 

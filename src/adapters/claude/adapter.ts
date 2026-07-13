@@ -4,6 +4,7 @@ import type { ScanContext } from "../../core/context.js";
 import type { Diagnostic } from "../../core/diagnostic.js";
 import type { AdmittedRoot } from "../../core/fs/safe-fs.js";
 import { parseJson } from "../../core/parsers/json.js";
+import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
@@ -35,12 +36,16 @@ export class ClaudeAdapter implements AgentAdapter {
     if (project.ok) {
       const instruction = await safeFs.readText(project.root, "CLAUDE.md");
       if (instruction.ok) inventory.push(inspectInstruction({ text: instruction.text, condition: "path-scoped" }, { agent: this.agent, source: { rootId: "project", relativePath: "CLAUDE.md" }, scope: "project", status: "active", loading: "always" }));
-      const settings = await safeFs.readText(project.root, ".claude/settings.json");
-      if (settings.ok) await this.addSettings(context, inventory, diagnostics, mcpPrecedence, settings.text, { rootId: "project", relativePath: ".claude/settings.json" }, "project", 2);
+      const settingsSource = { rootId: "project", relativePath: ".claude/settings.json" } as const;
+      const settings = await safeFs.readText(project.root, settingsSource.relativePath);
+      if (settings.ok) await this.addSettings(context, inventory, diagnostics, mcpPrecedence, settings.text, settingsSource, "project", 2);
+      else { const diagnostic = safeFsDiagnostic(this.agent, settingsSource, settings); if (diagnostic !== undefined) diagnostics.push(diagnostic); }
       const localSettings = await safeFs.readText(project.root, ".claude/settings.local.json");
       if (localSettings.ok) await this.addSettings(context, inventory, diagnostics, mcpPrecedence, localSettings.text, { rootId: "project", relativePath: ".claude/settings.local.json" }, "project", 3);
-      const mcp = await safeFs.readText(project.root, ".mcp.json");
-      if (mcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, mcp.text, { rootId: "project", relativePath: ".mcp.json" }, "project", 2, projectMcpApproved ? "active" : "unresolved");
+      const mcpSource = { rootId: "project", relativePath: ".mcp.json" } as const;
+      const mcp = await safeFs.readText(project.root, mcpSource.relativePath);
+      if (mcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, mcp.text, mcpSource, "project", 2, projectMcpApproved ? "active" : "unresolved");
+      else { const diagnostic = safeFsDiagnostic(this.agent, mcpSource, mcp); if (diagnostic !== undefined) diagnostics.push(diagnostic); }
       await this.addSkills(safeFs, project.root, ".claude/skills", "project", "project", inventory);
     }
 
