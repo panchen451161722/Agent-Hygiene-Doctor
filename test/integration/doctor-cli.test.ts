@@ -20,6 +20,18 @@ describe("doctor CLI runtime", () => {
     expect(capture.stderr).toEqual([]);
   });
 
+  it("renders useful terminal details", async () => {
+    const capture = runtime();
+    await expect(runDoctorAsync({ command: "doctor", agents: ["codex"], project: fixture, format: "terminal", agentMode: false, interactive: true, color: true, failOn: "error", verbose: false }, capture.value)).resolves.toBe(0);
+    const output = capture.stdout.join("");
+    expect(output).toContain("Adapters:\n  codex:");
+    expect(output).toContain("Inventory:");
+    expect(output).toContain("[codex] instruction AGENTS.md");
+    expect(output).toContain("Findings:");
+    expect(output).toContain("Diagnostics:");
+    expect(capture.stderr).toEqual([]);
+  });
+
   it("uses the requested project and applies fail-on warning", async () => {
     const capture = runtime();
     const exitCode = await runDoctorAsync({ command: "doctor", agents: ["codex"], project: fixture, format: "json", agentMode: false, interactive: true, color: true, failOn: "warning", verbose: false }, capture.value);
