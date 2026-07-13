@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -52,5 +52,22 @@ describe.sequential("recoverable skill removal", () => {
     await applyRemoval(store, operation.operationId);
     await mkdir(fixture.skill, { recursive: true });
     await expect(restoreRemoval(store, operation.operationId)).rejects.toMatchObject({ code: "AH-REMOVE-RESTORE-CONFLICT" });
+  });
+  it("refuses a skill that is replaced by a symlink after it was scanned", async () => {
+    const fixture = await makeFixture();
+    const target = join(fixture.root, "outside-skill.md");
+    await writeFile(target, "outside\n");
+    vi.stubEnv("HOME", fixture.home);
+    vi.stubEnv("USERPROFILE", fixture.home);
+    vi.stubEnv("CODEX_HOME", join(fixture.home, ".codex"));
+    const scan = await scanForManagement({ agents: ["codex"], project: fixture.project, environment: process.env });
+    const item = scan.report.inventory.find((entry) => entry.kind === "skill" && entry.name === "demo");
+    await rm(join(fixture.skill, "SKILL.md"));
+    try { await symlink(target, join(fixture.skill, "SKILL.md"), "file"); }
+    catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code === "EPERM") return;
+      throw error;
+    }
+    await expect(planRemoval({ itemIds: [item!.itemId], agents: ["codex"], project: fixture.project, environment: process.env, store: new OperationStore(join(fixture.root, "quarantine")) })).rejects.toMatchObject({ code: "AH-REMOVE-REFUSED" });
   });
 });

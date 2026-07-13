@@ -196,6 +196,11 @@ describe("report contract", () => {
     },
   );
 
+  it("rejects control characters in a source root ID", () => {
+    const input = baseInput();
+    input.inventory = [inventoryItem({ source: source("safe", "project\u001b[31m") })];
+    expect(() => buildReport(input)).toThrowError(/AH-REPORT-INVALID-SOURCE-REF/);
+  });
   it("accepts slash-separated relative report paths", () => {
     const input = baseInput();
     input.inventory = [inventoryItem({ source: source("nested/SKILL.md") })];

@@ -1,5 +1,7 @@
 import { checkbox } from "@inquirer/prompts";
 
+import { terminalText } from "../core/terminal.js";
+
 import type { Agent } from "./options.js";
 import type { CliRuntime } from "./main.js";
 import { type ManageKind, RemovalError, type RemovalOperation } from "../manage/model.js";
@@ -14,10 +16,10 @@ const validAgent = (value: string): value is Agent => value === "codex" || value
 const isKind = (value: string): value is ManageKind => value === "skill" || value === "mcp";
 const safeError = (error: unknown): string => error instanceof RemovalError ? error.code : "AH-REMOVE-OPERATION";
 const isMutable = (item: { kind: string; scope: string; status: string }): boolean => (item.kind === "skill" || item.kind === "mcp") && (item.scope === "user" || item.scope === "project") && (item.status === "active" || item.status === "disabled");
-const sourceLabel = (source: { rootId: string; relativePath: string }): string => `${source.rootId}:${source.relativePath}`;
+const sourceLabel = (source: { rootId: string; relativePath: string }): string => terminalText(`${source.rootId}:${source.relativePath}`);
 
 const publicOperation = (operation: RemovalOperation) => ({ operationId: operation.operationId, createdAt: operation.createdAt, status: operation.status, itemCount: operation.targets.length, items: operation.targets.map((target) => ({ itemId: target.itemId, agent: target.agent, kind: target.kind, name: target.name, scope: target.scope, source: target.source })) });
-const publicItemLabel = (target: RemovalOperation["targets"][number]): string => `[${target.agent}] ${target.kind} ${target.name} — ${target.scope} — ${target.source.rootId}:${target.source.relativePath}`;
+const publicItemLabel = (target: { readonly agent: string; readonly kind: string; readonly name: string; readonly scope: string; readonly source: { readonly rootId: string; readonly relativePath: string } }): string => `[${terminalText(target.agent)}] ${terminalText(target.kind)} ${terminalText(target.name)} — ${terminalText(target.scope)} — ${sourceLabel(target.source)}`;
 const renderPlan = (operation: RemovalOperation, format: Format): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `Removal plan: ${operation.operationId}\nItems:\n${operation.targets.map(publicItemLabel).join("\n")}\nExecute: agent-hygiene remove ${operation.operationId} --yes\n`;
 const renderComplete = (operation: RemovalOperation, format: Format, verb: "removed" | "restored" | "recovered"): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `${verb} ${operation.targets.length} item(s)\n${verb === "removed" ? `Restore: agent-hygiene restore ${operation.operationId} --yes\n` : ""}`;
 const parsePlanArguments = (argv: readonly string[]): PlanArguments => {
@@ -58,7 +60,7 @@ const chooseItems = async (options: PlanArguments): Promise<readonly string[]> =
   const scanned = await scanForManagement({ agents: options.agents, ...(options.project === undefined ? {} : { project: options.project }) });
   const candidates = scanned.report.inventory.filter((item) => (options.kind === undefined || item.kind === options.kind) && (item.kind === "skill" || item.kind === "mcp"));
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
-  const selected = await checkbox({ message: "Select items to quarantine", choices: candidates.map((item) => ({ name: `[${item.agent}] ${item.kind} ${item.name} — ${item.scope} — ${sourceLabel(item.source)}`, value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12 });
+  const selected = await checkbox({ message: "Select items to quarantine", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12 });
   return selected;
 };
 
@@ -98,7 +100,7 @@ export const runOperationsAsync = async (argv: readonly string[], runtime: CliRu
     const format: Format = argv.length === 0 ? "terminal" : (argv.length === 1 && argv[0] === "--agent-mode") || (argv.length === 2 && argv[0] === "--format" && argv[1] === "json") ? "json" : (() => { throw new RemovalError("AH-REMOVE-INVALID-ITEM"); })();
     const operations = await new OperationStore().list();
     if (format === "json") runtime.writeStdout(`${JSON.stringify({ operations })}\n`);
-    else runtime.writeStdout(operations.length === 0 ? "No operations.\n" : operations.map((operation) => `${operation.operationId} ${operation.createdAt} ${operation.status} ${operation.itemCount}\n${operation.items.map((item) => `  [${item.agent}] ${item.kind} ${item.name} — ${item.scope} — ${item.source.rootId}:${item.source.relativePath}`).join("\n")}`).join("\n") + "\n");
+    else runtime.writeStdout(operations.length === 0 ? "No operations.\n" : operations.map((operation) => `${operation.operationId} ${operation.createdAt} ${operation.status} ${operation.itemCount}\n${operation.items.map((item) => `  ${publicItemLabel(item)}`).join("\n")}`).join("\n") + "\n");
     return 0;
   } catch (error: unknown) { runtime.writeStderr(`fatal: ${safeError(error)}\n`); return 2; }
 };
