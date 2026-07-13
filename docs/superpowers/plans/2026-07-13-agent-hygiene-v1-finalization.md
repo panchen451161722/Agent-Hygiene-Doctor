@@ -3,8 +3,8 @@
 > 日期：2026-07-13  
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`  
 > 分支：`codex/agent-hygiene-v01`  
-> 代码基线：`3183682 feat: detect duplicate active MCP endpoints`  
-> 验证基线：32 个测试文件、170 项测试，`pnpm check` 通过  
+> 代码基线：`a889025 feat: resolve MCP commands without execution`  
+> 验证基线：33 个测试文件、171 项测试，`pnpm check` 通过  
 > 目标读者：接手开发的 Codex、Claude、GPT 或其他编码模型
 
 ## 1. 最终目标
@@ -38,8 +38,8 @@ pnpm check
 期望：
 
 - `git status --short` 无输出；
-- HEAD 至少包含 `3183682`；
-- 32 个测试文件、170 项测试通过。测试数量后续可以增加；
+- HEAD 至少包含 `a889025`；
+- 33 个测试文件、171 项测试通过。测试数量后续可以增加；
 - package version 当前仍为 `0.1.0`，不要在功能与发布验收完成前改版本。
 
 如果基线不同，先审计差异，不要 reset、checkout 或覆盖用户改动。
@@ -63,6 +63,7 @@ pnpm check
 | Hermes optional/profile candidates | `dc92ae6` |
 | Claude `.claude.json` immediate MCP | `aaac29d` |
 | duplicate active MCP endpoints | `3183682` |
+| metadata-only MCP command resolution | `a889025` |
 
 关键现状：
 
