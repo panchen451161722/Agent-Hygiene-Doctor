@@ -24,6 +24,16 @@ describe("Codex adapter projections", () => {
     ]);
   });
 
+  it("marks unsafe MCP shapes unresolved while preserving disabled state", () => {
+    expect(projectCodexMcp({ mcp_servers: { empty: { command: "" }, both: { command: "node", url: "https://mcp.example.test" }, badEnv: { command: "node", env: { TOKEN: 3 } }, badScheme: { url: "ftp://mcp.example.test" }, disabledBad: { enabled: false, args: ["missing-command"] }, loopback: { url: "http://[::1]:3000" } } })).toMatchObject([
+      { name: "badEnv", status: "unresolved" },
+      { name: "badScheme", status: "unresolved" },
+      { name: "both", status: "unresolved" },
+      { name: "disabledBad", status: "disabled" },
+      { name: "empty", status: "unresolved" },
+      { name: "loopback", status: "active", input: { urlClass: "loopback" } },
+    ]);
+  });
   it("gives override instructions precedence", () => {
     expect(selectCodexInstructions([{ path: "AGENTS.md", kind: "standard", active: true }, { path: "AGENTS.override.md", kind: "override", active: true }]).map((entry) => entry.path)).toEqual(["AGENTS.override.md", "AGENTS.md"]);
   });

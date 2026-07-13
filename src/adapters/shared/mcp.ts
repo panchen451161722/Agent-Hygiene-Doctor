@@ -18,7 +18,7 @@ export const classifyMcpUrl = (raw: string): NonNullable<McpFacts["urlClass"]> =
   try {
     const url = new URL(raw);
     const host = url.hostname.toLowerCase();
-    if (host === "localhost" || host === "::1" || /^127(?:\.\d{1,3}){3}$/u.test(host)) return "loopback";
+    if (host === "localhost" || host === "::1" || host === "[::1]" || /^127(?:\.\d{1,3}){3}$/u.test(host)) return "loopback";
     if (url.protocol === "https:") return "tls";
     if (url.protocol === "http:") return "plaintext-remote";
     return "unknown";
@@ -27,25 +27,33 @@ export const classifyMcpUrl = (raw: string): NonNullable<McpFacts["urlClass"]> =
   }
 };
 
+const unresolved = (name: string, status: "active" | "disabled"): McpProjection => ({ name: name.trim() === "" ? "unnamed" : name, status: status === "disabled" ? "disabled" : "unresolved", input: { name: name.trim() === "" ? "unnamed" : name, transport: "stdio" } });
+
+const supportedHttpUrl = (value: string): boolean => {
+  try { const protocol = new URL(value).protocol; return protocol === "http:" || protocol === "https:"; }
+  catch { return false; }
+};
+
 const projectServer = (name: string, value: unknown): McpProjection => {
-  if (!isRecord(value)) return { name, status: "unresolved", input: { name, transport: "stdio" } };
+  if (!isRecord(value)) return unresolved(name, "active");
   const status = value.enabled === false ? "disabled" as const : "active" as const;
+  if (name.trim() === "" || (value.command !== undefined && value.url !== undefined)) return unresolved(name, status);
   if (typeof value.command === "string") {
+    if (value.command.trim() === "") return unresolved(name, status);
     const args = value.args === undefined ? [] : strings(value.args);
-    if (args === undefined) return { name, status: "unresolved", input: { name, transport: "stdio" } };
     const environmentNames = fieldNames(value.env);
+    if (args === undefined || (value.env !== undefined && environmentNames === undefined)) return unresolved(name, status);
     return { name, status, input: { name, transport: "stdio", command: value.command, args, ...(environmentNames === undefined ? {} : { environmentNames }) } };
   }
   if (typeof value.url === "string") {
     const declared = value.transport ?? value.type;
-    if (declared !== undefined && declared !== "http" && declared !== "sse") return { name, status: "unresolved", input: { name, transport: "stdio" } };
-    const transport = declared === "sse" ? "sse" : "http";
     const headerNames = fieldNames(value.headers);
+    if (!supportedHttpUrl(value.url) || (declared !== undefined && declared !== "http" && declared !== "sse") || (value.headers !== undefined && headerNames === undefined)) return unresolved(name, status);
+    const transport = declared === "sse" ? "sse" : "http";
     return { name, status, input: { name, transport, url: value.url, urlClass: classifyMcpUrl(value.url), ...(headerNames === undefined ? {} : { headerNames }) } };
   }
-  return { name, status: "unresolved", input: { name, transport: "stdio" } };
+  return unresolved(name, status);
 };
-
 export const projectMcpServers = (value: unknown, key = "mcp_servers"): readonly McpProjection[] => {
   if (!isRecord(value) || !isRecord(value[key])) return [];
   return Object.entries(value[key])
