@@ -33,11 +33,6 @@ const selectedTargets = (operation: RemovalOperation, keys: readonly string[]): 
   return operation.targets.filter((target) => selected.has(targetKey(target)));
 };
 
-const assertMissing = async (target: OperationTarget): Promise<void> => {
-  await assertNoLinksAlongPath(target.rootPath, dirname(target.absolutePath));
-  if (await fs.lstat(target.absolutePath).catch(() => undefined) !== undefined) throw new RemovalError("AH-REMOVE-RESTORE-CONFLICT");
-};
-
 const verifyInventory = async (operation: RemovalOperation, expectedPresent: boolean): Promise<void> => {
   const agents = [...new Set(operation.targets.map((target) => target.agent))];
   const scanned = await scanForManagement({ agents, ...(operation.projectDirectory === undefined ? {} : { project: operation.projectDirectory }) });
@@ -93,23 +88,31 @@ const restoreSkill = async (source: OperationTarget, backup: string): Promise<vo
   await fs.rename(temporary, source.absolutePath);
 };
 
-const preflightPreimageRestore = async (targets: readonly OperationTarget[]): Promise<void> => {
+/**
+ * A restore write and its journal checkpoint cannot be made atomic together.
+ * If the process exits in that interval, the target already has its pre-image
+ * even though the journal still calls it pending. Treat an exact pre-image as
+ * a completed checkpoint; anything else is a restore conflict.
+ */
+const preflightPreimageRestore = async (targets: readonly OperationTarget[]): Promise<{ readonly alreadyRestored: readonly OperationTarget[]; readonly pending: readonly OperationTarget[] }> => {
+  const alreadyRestored: OperationTarget[] = [];
+  const pending: OperationTarget[] = [];
   for (const target of sourceTargets(targets)) {
-    if (target.kind === "skill") await assertMissing(target);
-    else {
-      let current: string;
-      try { current = await currentHash(target); } catch { throw new RemovalError("AH-REMOVE-RESTORE-CONFLICT"); }
-      if (current !== target.plannedPostImageHash) throw new RemovalError("AH-REMOVE-RESTORE-CONFLICT");
-    }
+    const state = await sourceState(target);
+    if (state === "pre") { alreadyRestored.push(target); continue; }
+    if (state === "post") { pending.push(target); continue; }
+    throw new RemovalError("AH-REMOVE-RESTORE-CONFLICT");
   }
+  return { alreadyRestored, pending };
 };
 
 const restorePreimages = async (store: OperationStore, operation: RemovalOperation, targets: readonly OperationTarget[], journalStatus: "restoring" | "applying"): Promise<void> => {
   const sources = sourceTargets(targets);
-  await preflightPreimageRestore(sources);
+  const { alreadyRestored, pending } = await preflightPreimageRestore(sources);
+  for (const target of alreadyRestored) await store.updateJournal(operation.operationId, journalStatus, [], [], [targetKey(target)]);
   const restored: OperationTarget[] = [];
   try {
-    for (const target of sources) {
+    for (const target of pending) {
       const backup = backupPath(store, operation, target);
       if (target.kind === "skill") await restoreSkill(target, backup);
       else await writeAtomic(target.absolutePath, await fs.readFile(backup));
@@ -127,7 +130,6 @@ const restorePreimages = async (store: OperationStore, operation: RemovalOperati
     throw error instanceof RemovalError ? error : new RemovalError("AH-REMOVE-RESTORE-CONFLICT");
   }
 };
-
 const configPostText = async (store: OperationStore, operation: RemovalOperation, targets: readonly OperationTarget[]): Promise<string> => {
   const first = targets[0];
   if (first === undefined) throw new RemovalError("AH-REMOVE-OPERATION");

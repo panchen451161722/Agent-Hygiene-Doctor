@@ -69,4 +69,32 @@ describe.sequential("removal transactions", () => {
     await expect(readFile(join(fixture.first, "SKILL.md"), "utf8")).rejects.toThrow();
     await expect(readFile(join(fixture.second, "SKILL.md"), "utf8")).resolves.toBe("user replacement\n");
   });
+  it("continues a restore after a pre-image write that was not journaled", async () => {
+    const fixture = await createFixture();
+    await applyRemoval(fixture.store, fixture.operation.operationId);
+    const applied = await fixture.store.load(fixture.operation.operationId);
+    const restoring = await fixture.store.setStatus(applied, "restoring");
+    const first = restoring.targets.find((target) => target.absolutePath === fixture.first);
+    expect(first).toBeDefined();
+    await nodeFs.cp(join(fixture.store.operationDirectory(restoring.operationId), first!.backupPath), fixture.first, { recursive: true });
+    await expect(fixture.store.loadJournal(restoring.operationId)).resolves.toMatchObject({ status: "restoring", restoredTargetKeys: [] });
+
+    await expect(restoreRemoval(fixture.store, restoring.operationId)).resolves.toMatchObject({ status: "restored" });
+    await expect(readFile(join(fixture.first, "SKILL.md"), "utf8")).resolves.toContain("alpha");
+    await expect(readFile(join(fixture.second, "SKILL.md"), "utf8")).resolves.toContain("zeta");
+    await expect(fixture.store.loadJournal(restoring.operationId)).resolves.toMatchObject({ restoredTargetKeys: expect.arrayContaining([`skill:${fixture.first}`]) });
+  });
+
+  it("rolls back an interrupted apply journal whose target already has its post-image", async () => {
+    const fixture = await createFixture();
+    await applyRemoval(fixture.store, fixture.operation.operationId);
+    const applied = await fixture.store.load(fixture.operation.operationId);
+    const journal = await fixture.store.loadJournal(fixture.operation.operationId);
+    await fixture.store.save({ ...applied, status: "applying" });
+    await fixture.store.saveJournal({ ...journal, status: "applying" });
+
+    await expect(restoreRemoval(fixture.store, fixture.operation.operationId)).resolves.toMatchObject({ status: "rolled_back" });
+    await expect(readFile(join(fixture.first, "SKILL.md"), "utf8")).resolves.toContain("alpha");
+    await expect(readFile(join(fixture.second, "SKILL.md"), "utf8")).resolves.toContain("zeta");
+  });
 });
