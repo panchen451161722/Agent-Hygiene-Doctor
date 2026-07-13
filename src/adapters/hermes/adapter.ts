@@ -33,6 +33,7 @@ export class HermesAdapter implements AgentAdapter {
     }
     await this.addSkills(safeFs, root.root, inventory);
     await this.addOptionalMcpCatalog(safeFs, root.root, inventory, diagnostics);
+    if (context.environment?.HERMES_HOME === undefined) await this.addProfileCandidates(safeFs, root.root, inventory, diagnostics);
     return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
@@ -57,6 +58,25 @@ export class HermesAdapter implements AgentAdapter {
       const parsed = parseYaml(manifest.text, { source });
       if (!parsed.ok) { diagnostics.push({ ...parsed.diagnostic, agent: this.agent }); continue; }
       inventory.push(inspectMcp({ name, transport: "stdio" }, { agent: this.agent, source, scope: "user", status: "candidate", loading: "deferred" }));
+    }
+  }
+
+  private async addProfileCandidates(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[]): Promise<void> {
+    const activeProfile = await safeFs.readText(root, "active_profile");
+    if (!activeProfile.ok) return;
+    const stickyName = activeProfile.text.trim();
+    const entries = await safeFs.readDirectory(root, "profiles");
+    if (!entries.ok) return;
+    for (const name of [...entries.entries].sort()) {
+      const relativePath = `profiles/${name}/config.yaml`;
+      const config = await safeFs.readText(root, relativePath);
+      if (!config.ok) continue;
+      const source = { rootId: "hermes-home", relativePath };
+      const parsed = parseYaml(config.text, { source });
+      const status = name === stickyName ? "unresolved" as const : "candidate" as const;
+      if (!parsed.ok) { diagnostics.push({ ...parsed.diagnostic, agent: this.agent }); continue; }
+      inventory.push(item({ agent: this.agent, source, scope: "user", status, loading: "deferred" }, "configuration", relativePath, { type: "configuration", format: "yaml", parseStatus: "valid", precedence: 0 }));
+      for (const server of projectMcpServers(parsed.value)) inventory.push(inspectMcp(server.input, { agent: this.agent, source, scope: "user", status: server.status === "disabled" ? "disabled" : status, loading: "deferred" }));
     }
   }
 }

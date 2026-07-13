@@ -4,7 +4,7 @@
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`
 > 分支：`codex/agent-hygiene-v01`
 > 当前代码基线：`a15b02b`
-> 当前验证基线：32 个测试文件、167 项测试，`pnpm check` 通过。
+> 当前验证基线：32 个测试文件、168 项测试，`pnpm check` 通过。
 > 用途：可直接交给 Codex、Claude、GPT 等后续模型继续执行。
 
 ## 1. 目标
@@ -45,7 +45,7 @@
 - Coverage：已改为 partial，但 read/limit/unsafe failures 仍可能被 adapter 静默忽略。
 - Codex：基础 MCP 已发现，但 trust、重复 server、完整 fixtures/read trace 未完成。
 - Claude：managed settings/MCP、local/project/user precedence 已完成；受限 `.claude.json` 未完成。
-- Hermes：config MCP 与 optional manifest catalog 已发现；active profile、OAuth/state 隔离验收未完成。
+- Hermes：config MCP、optional manifest catalog 与 sticky profile candidates 已发现；OAuth/state 隔离验收未完成。
 - Analyzer：已有四条 MCP 规则，但 finding 唯一性、typed analyzer 隔离、command resolution、跨 agent duplicate 未完成。
 - Privacy：inspector 输出不含值，但 env/header 原始值仍会进入 inspector 内存，不满足“进入 inspector 前丢弃值”的边界。
 - Pack：`scripts/verify-pack.mjs` 仍只运行 `dist/cli/main.js`，没有安装 tarball 并运行真实 bin。
@@ -212,7 +212,7 @@
 
 - [x] `config.yaml` 的 `mcp_servers` 基础发现。
 - [x] enabled false 基础状态投影。
-- [ ] sticky `active_profile` 与 immediate candidate profiles。
+- [x] sticky `active_profile` 与 immediate candidate profiles。
 - [x] 可选 MCP manifests 经过 SafeFileSystem。
 - [ ] `.env` 只能产生 unresolved activation，不读取值。
 - [ ] 不读取 OAuth/state/memory 文件。
