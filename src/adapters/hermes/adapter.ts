@@ -8,7 +8,7 @@ import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
 import { inspectSkill } from "../../inspectors/skill.js";
-import { projectMcpServers } from "../codex/mcp.js";
+import { projectMcpServers } from "../shared/mcp.js";
 
 export class HermesAdapter implements AgentAdapter {
   readonly agent: AgentId = "hermes";

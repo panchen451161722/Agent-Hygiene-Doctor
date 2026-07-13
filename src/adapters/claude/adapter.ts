@@ -8,7 +8,7 @@ import { inspectMcp } from "../../inspectors/mcp.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectSkill } from "../../inspectors/skill.js";
-import { projectMcpServers } from "../codex/mcp.js";
+import { projectMcpServers } from "../shared/mcp.js";
 
 export class ClaudeAdapter implements AgentAdapter {
   readonly agent: AgentId = "claude";
