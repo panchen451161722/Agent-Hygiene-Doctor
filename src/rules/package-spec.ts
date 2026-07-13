@@ -24,7 +24,7 @@ const packageNameAndVersion = (spec: string): { packageName: string; version?: s
   return at > 0 ? { packageName: spec.slice(0, at), version: spec.slice(at + 1) } : { packageName: spec };
 };
 
-const packageShape = /^[A-Za-z0-9_.@/\\-^~*]+$/u;
+const packageShape = /^[-A-Za-z0-9_.@/\\^~*]+$/u;
 const exactSemver = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
 const fullCommit = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/iu;
 

@@ -5,8 +5,10 @@ import type { Diagnostic } from "../../core/diagnostic.js";
 import { parseToml } from "../../core/parsers/toml.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
+import { inspectMcp } from "../../inspectors/mcp.js";
 import { inspectSkill } from "../../inspectors/skill.js";
 import { projectCodexConfig } from "./config.js";
+import { projectCodexMcp } from "./mcp.js";
 
 export class CodexAdapter implements AgentAdapter {
   readonly agent: AgentId = "codex";
@@ -90,6 +92,15 @@ export class CodexAdapter implements AgentAdapter {
       source.relativePath,
       { type: "configuration", format: "toml", parseStatus: "valid", precedence },
     ));
+    for (const server of projectCodexMcp(parsed.value)) {
+      inventory.push(inspectMcp(server.input, {
+        agent: this.agent,
+        source,
+        scope,
+        status: server.status,
+        loading: "always",
+      }));
+    }
   }
 }
 

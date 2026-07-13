@@ -20,9 +20,15 @@ describe("inventory inspectors", () => {
     expect(item.estimatedTokens).toBeGreaterThan(0);
   });
 
-  it("retains only MCP credential field names, never values", () => {
-    const item = inspectMcp({ transport: "stdio", command: "npx", args: ["demo@1.2.3"], env: { API_TOKEN: "secret-value" } }, context);
-    expect(item.facts).toMatchObject({ type: "mcp", credentialLikeFields: ["API_TOKEN"] });
+  it("retains only stdio MCP credential field names and package pins", () => {
+    const item = inspectMcp({ name: "github", transport: "stdio", command: "npx", args: ["@modelcontextprotocol/server-github@1.2.3"], env: { GITHUB_TOKEN: "secret-value" } }, context);
+    expect(item.facts).toMatchObject({ type: "mcp", packageInvocation: "exact", credentialLikeFields: ["GITHUB_TOKEN"] });
+    expect(JSON.stringify(item)).not.toContain("secret-value");
+  });
+
+  it("retains only HTTP MCP credential field names", () => {
+    const item = inspectMcp({ name: "remote", transport: "http", url: "https://mcp.example.test/api?token=secret-value", headers: { Authorization: "Bearer secret-value" }, urlClass: "tls" }, context);
+    expect(item.facts).toMatchObject({ type: "mcp", urlClass: "tls", credentialLikeFields: ["Authorization"] });
     expect(JSON.stringify(item)).not.toContain("secret-value");
   });
 
@@ -31,4 +37,3 @@ describe("inventory inspectors", () => {
     expect(item.itemId).toBe(stableId(["codex", "plugin", "plugin-a", context.source]));
   });
 });
-
