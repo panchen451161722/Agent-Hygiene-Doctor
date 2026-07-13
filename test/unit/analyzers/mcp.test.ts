@@ -12,6 +12,7 @@ describe("MCP analyzer", () => {
     ];
     expect(analyzeMcp(items).map((finding) => finding.ruleId)).toEqual(["mcp-credential-field", "mcp-package-unpinned", "mcp-plaintext-remote"]);
     expect(JSON.stringify(analyzeMcp(items))).not.toContain("secret");
+    expect(analyzeMcp(items).every((finding) => finding.evidence[0]?.kind === "items")).toBe(true);
   });
 
   it("does not warn for disabled or exactly pinned MCP servers", () => {

@@ -49,6 +49,7 @@ describe("doctor CLI runtime", () => {
     expect(exitCode).toBe(1);
     expect(report.inventory).toContainEqual(expect.objectContaining({ kind: "mcp", name: "unpinned" }));
     expect(report.findings.map((finding) => finding.ruleId)).toEqual(expect.arrayContaining(["mcp-package-unpinned", "mcp-plaintext-remote"]));
+    expect(report.findings.filter((finding) => finding.ruleId === "mcp-package-unpinned")).toHaveLength(2);
     expect(capture.stderr).toEqual([]);
   });
 

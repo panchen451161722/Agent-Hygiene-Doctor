@@ -4,3 +4,6 @@ args = ["-y", "demo@latest"]
 
 [mcp_servers.remote]
 url = "http://mcp.example.test/api"
+[mcp_servers.another_unpinned]
+command = "npx"
+args = ["-y", "another-demo@latest"]

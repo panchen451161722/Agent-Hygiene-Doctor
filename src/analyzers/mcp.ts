@@ -10,7 +10,7 @@ const createFinding = (ruleId: string, item: InventoryItem, title: string, impac
   category: "mcp",
   title,
   impact,
-  evidence: [{ kind: "source", source: item.source }],
+  evidence: [{ kind: "items", itemIds: [item.itemId] }],
   recommendation,
   manualSteps: manualStepsFor(ruleId),
   confidence: "high",
