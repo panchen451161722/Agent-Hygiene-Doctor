@@ -10,4 +10,6 @@ export const manualStepsFor = (ruleId: string): readonly string[] => ruleId === 
           ? ["Review the named credential field without exposing its value."]
           : ruleId === "mcp-transport-unknown"
             ? ["Specify a supported stdio command or HTTP/SSE URL."]
-            : [];
+            : ruleId === "mcp-duplicate-endpoint"
+              ? ["Choose one intended active MCP definition and disable or remove duplicates."]
+              : [];

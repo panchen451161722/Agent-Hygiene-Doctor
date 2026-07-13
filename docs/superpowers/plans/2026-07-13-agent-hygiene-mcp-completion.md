@@ -4,7 +4,7 @@
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`
 > 分支：`codex/agent-hygiene-v01`
 > 当前代码基线：`a15b02b`
-> 当前验证基线：32 个测试文件、169 项测试，`pnpm check` 通过。
+> 当前验证基线：32 个测试文件、170 项测试，`pnpm check` 通过。
 > 用途：可直接交给 Codex、Claude、GPT 等后续模型继续执行。
 
 ## 1. 目标
@@ -245,11 +245,11 @@
 
 要求：
 
-- [ ] 使用 endpointFingerprint 比较 active MCP。
-- [ ] disabled/unresolved 不参与 active duplicate warning。
-- [ ] 同一 server 在 user/project/agent 间重复时保留所有 inventory items。
-- [ ] finding evidence 使用 item IDs，保证稳定和唯一。
-- [ ] 输入顺序变化不影响结果。
+- [x] 使用 endpointFingerprint 比较 active MCP。
+- [x] disabled/unresolved 不参与 active duplicate warning。
+- [x] 同一 server 在 user/project/agent 间重复时保留所有 inventory items。
+- [x] finding evidence 使用 item IDs，保证稳定和唯一。
+- [x] 输入顺序变化不影响结果。
 
 建议提交：`feat: detect duplicate active MCP endpoints`
 
