@@ -6,6 +6,16 @@
 > 基线提交：`ffacede`
 > 目标：让 Codex、Claude、Hermes 的 MCP 配置进入 inventory、findings 和 terminal/JSON report，并纠正虚假的 complete coverage。
 
+## 0. 当前执行状态（2026-07-13）
+
+已完成并提交：
+
+- `965ed21 fix: report honest adapter coverage`：三个 adapter 的已发现但不完整情况改为 `partial`。
+- `fddd354 feat: discover Codex MCP servers`：Codex user/project TOML MCP discovery、安全 fingerprint、credential 字段脱敏、scoped package pin 识别。
+- `3d92ebc feat: report MCP hygiene findings`：未固定 package、明文远程 HTTP、credential 字段、未知 transport 的 MCP findings；doctor 与 `--fail-on warning` 接线。
+- `fadaec6 feat: discover Claude and Hermes MCP servers`：Claude project `.mcp.json` 与 Hermes YAML `mcp_servers` 的基础发现。
+
+仍未完成：Claude managed/settings precedence、Hermes active profile/manifest、MCP executable metadata resolution、跨 agent duplicate、隐私 sentinel/read-trace、pack install 中 MCP 验收。不要将本计划的 Task F 标记为完成。
 ## 1. 开始前必须确认
 
 ```powershell
