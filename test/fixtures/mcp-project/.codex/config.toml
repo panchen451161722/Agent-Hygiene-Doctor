@@ -1,0 +1,6 @@
+[mcp_servers.unpinned]
+command = "npx"
+args = ["-y", "demo@latest"]
+
+[mcp_servers.remote]
+url = "http://mcp.example.test/api"

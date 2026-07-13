@@ -5,6 +5,7 @@ import { nodeFsBackend } from "../core/fs/backend.js";
 import { runAdapters } from "../core/orchestrator.js";
 import { buildReport } from "../core/report.js";
 import { analyzeConfiguration } from "../analyzers/configuration.js";
+import { analyzeMcp } from "../analyzers/mcp.js";
 import { adapter as claudeAdapter } from "../adapters/claude/adapter.js";
 import { adapter as codexAdapter } from "../adapters/codex/adapter.js";
 import { adapter as hermesAdapter } from "../adapters/hermes/adapter.js";
@@ -61,7 +62,7 @@ export const runDoctorAsync = async (options: DoctorCliOptions, runtime: CliRunt
   const results = await runAdapters(agents.map((agent) => adapters[agent]), context);
   const inventory = results.flatMap((result) => result.inventory);
   const diagnostics = results.flatMap((result) => result.diagnostics);
-  const findings = analyzeConfiguration(inventory);
+  const findings = [...analyzeConfiguration(inventory), ...analyzeMcp(inventory)];
   const report = buildReport({
     tool: { name: "agent-hygiene-cli", version: TOOL_VERSION },
     scan: { startedAt: new Date(started).toISOString(), durationMs: Date.now() - started, platform: context.platform, projectRoot: { rootId: "project", relativePath: "." }, selectedWorkingDirectory: { rootId: "project", relativePath: "." }, selectedAgents: agents, coverage: "unknown" },

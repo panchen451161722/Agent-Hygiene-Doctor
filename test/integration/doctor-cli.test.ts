@@ -4,6 +4,7 @@ import { runDoctorAsync } from "../../src/cli/doctor.js";
 import type { CliRuntime } from "../../src/cli/main.js";
 
 const fixture = resolve("test/fixtures/doctor-project");
+const mcpFixture = resolve("test/fixtures/mcp-project");
 const runtime = () => {
   const stdout: string[] = [];
   const stderr: string[] = [];
@@ -39,6 +40,16 @@ describe("doctor CLI runtime", () => {
     expect(exitCode).toBe(1);
     expect(report.inventory).toContainEqual(expect.objectContaining({ source: { rootId: "project", relativePath: ".codex/config.toml" } }));
     expect(report.findings).toContainEqual(expect.objectContaining({ severity: "warning" }));
+  });
+
+  it("returns warning exit status for MCP hygiene findings", async () => {
+    const capture = runtime();
+    const exitCode = await runDoctorAsync({ command: "doctor", agents: ["codex"], project: mcpFixture, format: "json", agentMode: false, interactive: true, color: true, failOn: "warning", verbose: false }, capture.value);
+    const report = JSON.parse(capture.stdout.join("")) as { inventory: { kind: string; name: string }[]; findings: { ruleId: string }[] };
+    expect(exitCode).toBe(1);
+    expect(report.inventory).toContainEqual(expect.objectContaining({ kind: "mcp", name: "unpinned" }));
+    expect(report.findings.map((finding) => finding.ruleId)).toEqual(expect.arrayContaining(["mcp-package-unpinned", "mcp-plaintext-remote"]));
+    expect(capture.stderr).toEqual([]);
   });
 
   it("keeps agent-mode JSON-only and rejects an unavailable project", async () => {
