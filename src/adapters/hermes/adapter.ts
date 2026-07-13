@@ -4,6 +4,7 @@ import type { ScanContext } from "../../core/context.js";
 import type { Diagnostic } from "../../core/diagnostic.js";
 import type { AdmittedRoot } from "../../core/fs/safe-fs.js";
 import { parseYaml } from "../../core/parsers/yaml.js";
+import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
@@ -25,9 +26,10 @@ export class HermesAdapter implements AgentAdapter {
     const diagnostics: Diagnostic[] = [];
     const soul = await safeFs.readText(root.root, "SOUL.md");
     if (soul.ok) inventory.push(inspectInstruction({ text: soul.text, condition: "global" }, { agent: this.agent, source: { rootId: "hermes-home", relativePath: "SOUL.md" }, scope: "user", status: "active", loading: "always" }));
+    const configSource = { rootId: "hermes-home", relativePath: "config.yaml" } as const;
     const config = await safeFs.readText(root.root, "config.yaml");
     if (config.ok) {
-      const source = { rootId: "hermes-home", relativePath: "config.yaml" };
+      const source = configSource;
       const parsed = parseYaml(config.text, { source });
       if (!parsed.ok) diagnostics.push({ ...parsed.diagnostic, agent: this.agent });
       inventory.push(item({ agent: this.agent, source, scope: "user", status: parsed.ok ? "active" : "unresolved", loading: "always" }, "configuration", source.relativePath, { type: "configuration", format: "yaml", parseStatus: parsed.ok ? "valid" : "invalid", precedence: 1 }));
@@ -35,6 +37,9 @@ export class HermesAdapter implements AgentAdapter {
         const servers = projectMcpServers(parsed.value).map((server) => server.status === "active" && hermesMcpDependsOnEnvironment(parsed.value, server.name) ? { ...server, status: "unresolved" as const } : server);
         for (const server of await resolveMcpCommands(context, servers)) inventory.push(inspectMcp(server.input, { agent: this.agent, source, scope: "user", status: server.status, loading: "always" }));
       }
+    } else {
+      const diagnostic = safeFsDiagnostic(this.agent, configSource, config);
+      if (diagnostic !== undefined) diagnostics.push(diagnostic);
     }
     await this.addSkills(safeFs, root.root, inventory);
     await this.addOptionalMcpCatalog(safeFs, root.root, inventory, diagnostics);
