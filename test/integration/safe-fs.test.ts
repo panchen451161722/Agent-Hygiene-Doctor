@@ -100,4 +100,16 @@ describe("SafeFileSystem", () => {
     expect(await safeFs.admitRoot("/root-a")).toMatchObject({ ok: true });
     expect(await safeFs.admitRoot("/root-b")).toMatchObject({ ok: false, diagnostic: { code: "limit_exceeded" } });
   });
+  it("resolves executable metadata without opening candidate files", async () => {
+    let opened = 0;
+    const backend: FsBackend = {
+      lstat: async (path) => path === "/bin/tool" ? { type: "file", size: 1, mode: 0o755 } : { type: "directory", size: 0 },
+      realpath: async (path) => path,
+      openRegularFile: async () => { opened++; throw new Error("must not open executable metadata"); },
+      readDirectory: async () => [],
+    };
+    const safeFs = new SafeFileSystem({ backend, dialect: posixDialect });
+    await expect(safeFs.resolveExecutableMetadata("tool", { platform: "linux", cwd: "/root", path: "/bin", pathext: undefined })).resolves.toBe("resolved");
+    expect(opened).toBe(0);
+  });
 });

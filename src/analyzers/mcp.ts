@@ -52,6 +52,9 @@ export const analyzeMcp = (items: readonly InventoryItem[]): readonly Finding[] 
     if (item.facts.credentialLikeFields.length > 0) {
       findings.push(createFinding("mcp-credential-field", item, "MCP configuration names credential fields", "Credential-bearing configuration deserves an explicit security review.", "Store credentials outside the MCP configuration where possible and review field usage."));
     }
+    if (item.status === "active" && item.facts.commandResolution === "not-found") {
+      findings.push(createFinding("mcp-command-not-found", item, "MCP stdio command was not found", "The MCP server cannot start until its configured command is available.", "Install the command or update the MCP command setting."));
+    }
   }
   const activeByFingerprint = new Map<string, InventoryItem[]>();
   for (const item of items) {

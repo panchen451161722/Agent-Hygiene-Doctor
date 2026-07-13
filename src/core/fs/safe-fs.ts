@@ -6,6 +6,7 @@ import { AdapterBudget, RootBudget } from "./budget.js";
 import { ScanIoSemaphore } from "./semaphore.js";
 import type { PathDialect } from "../path-dialect.js";
 import type { RootRegistry } from "../root-registry.js";
+import { resolveExecutable, type ResolveExecutableOptions } from "../../rules/executable.js";
 
 const admittedRootBrand: unique symbol = Symbol("agent-hygiene-admitted-root");
 
@@ -20,6 +21,7 @@ export interface SafeTextResult { readonly ok: true; readonly text: string; }
 export interface SafeRootResult { readonly ok: true; readonly root: AdmittedRoot; }
 export interface SafeDirectoryResult { readonly ok: true; readonly entries: readonly string[]; }
 export interface SafeFsOptions { readonly backend: FsBackend; readonly dialect: PathDialect; readonly semaphore?: ScanIoSemaphore; readonly limits?: typeof SCAN_LIMITS_V1; readonly adapterBudget?: AdapterBudget; readonly rootRegistry?: RootRegistry; }
+export type MetadataExecutableOptions = Omit<ResolveExecutableOptions, "fs">;
 
 const diagnostic = (code: SafeDiagnosticCode): SafeReadResult => ({ ok: false, diagnostic: { code } });
 const nonFileDiagnostic = (stat: FsStat): SafeReadResult =>
@@ -90,6 +92,14 @@ export class SafeFileSystem {
     };
   }
 
+  /** Resolves a command through metadata only. Candidate paths never leave this boundary. */
+  async resolveExecutableMetadata(command: string, options: MetadataExecutableOptions): Promise<"resolved" | "not-found" | "unknown"> {
+    const result = await resolveExecutable(command, {
+      ...options,
+      fs: { lstat: (path) => this.guardedBackend().lstat(path) },
+    });
+    return result.status;
+  }
   async readText(root: AdmittedRoot, relativePath: string): Promise<SafeTextResult | SafeReadResult> {
     const budget = this.budgetFor(root);
     if (!this.isKnownRoot(root) || !budget) return diagnostic("unsafe_reference");

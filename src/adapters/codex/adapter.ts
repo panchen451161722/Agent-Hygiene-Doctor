@@ -9,6 +9,7 @@ import { inspectMcp } from "../../inspectors/mcp.js";
 import { inspectSkill } from "../../inspectors/skill.js";
 import { projectCodexConfig } from "./config.js";
 import { projectCodexMcp } from "./mcp.js";
+import { resolveMcpCommands } from "../shared/command-resolution.js";
 
 export class CodexAdapter implements AgentAdapter {
   readonly agent: AgentId = "codex";
@@ -34,7 +35,7 @@ export class CodexAdapter implements AgentAdapter {
       }
       const projectConfig = await safeFs.readText(projectRoot.root, ".codex/config.toml");
       if (projectConfig.ok) {
-        this.addConfig(inventory, diagnostics, projectConfig.text, { rootId: "project", relativePath: ".codex/config.toml" }, "project", 2);
+        await this.addConfig(context, inventory, diagnostics, projectConfig.text, { rootId: "project", relativePath: ".codex/config.toml" }, "project", 2);
       }
     }
 
@@ -42,7 +43,7 @@ export class CodexAdapter implements AgentAdapter {
     if (codexHome.ok) {
       const config = await safeFs.readText(codexHome.root, "config.toml");
       if (config.ok) {
-        this.addConfig(inventory, diagnostics, config.text, { rootId: "codex-home", relativePath: "config.toml" }, "user", 1);
+        await this.addConfig(context, inventory, diagnostics, config.text, { rootId: "codex-home", relativePath: "config.toml" }, "user", 1);
       }
     }
 
@@ -66,14 +67,15 @@ export class CodexAdapter implements AgentAdapter {
     return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
-  private addConfig(
+  private async addConfig(
+    context: ScanContext,
     inventory: ReturnType<typeof item>[],
     diagnostics: Diagnostic[],
     text: string,
     source: { rootId: string; relativePath: string },
     scope: "user" | "project",
     precedence: number,
-  ): void {
+  ): Promise<void> {
     const parsed = parseToml(text, { source });
     if (!parsed.ok) {
       diagnostics.push({ ...parsed.diagnostic, agent: this.agent });
@@ -92,7 +94,7 @@ export class CodexAdapter implements AgentAdapter {
       source.relativePath,
       { type: "configuration", format: "toml", parseStatus: "valid", precedence },
     ));
-    for (const server of projectCodexMcp(parsed.value)) {
+    for (const server of await resolveMcpCommands(context, projectCodexMcp(parsed.value))) {
       inventory.push(inspectMcp(server.input, {
         agent: this.agent,
         source,
