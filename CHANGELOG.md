@@ -2,6 +2,12 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## Unreleased
+
+### Changed
+
+- Moved the Esc cancellation hint into the interactive prompt's keyboard-help line.
+
 ## 2.0.1 - 2026-07-22
 
 ### Changed

@@ -1,4 +1,5 @@
 import { checkbox } from "@inquirer/prompts";
+import { styleText } from "node:util";
 
 import { terminalText } from "../core/terminal.js";
 
@@ -58,6 +59,10 @@ const parseExecutionArguments = (argv: readonly string[]): { readonly operationI
 };
 
 const ESCAPE_REASON = "AH-PROMPT-ESCAPE";
+const promptKeysHelp = (keys: [key: string, action: string][]): string =>
+  [...keys, ["esc", "cancel"] as [string, string]]
+    .map(([key, action]) => `${styleText("bold", key)} ${styleText("dim", action)}`)
+    .join(styleText("dim", " • "));
 const chooseItems: RemoveSelection = async (options) => {
   const scanned = await scanForManagement({ agents: options.agents, ...(options.project === undefined ? {} : { project: options.project }) });
   const candidates = scanned.report.inventory.filter((item) => (options.kind === undefined || item.kind === options.kind) && (item.kind === "skill" || item.kind === "mcp"));
@@ -68,7 +73,7 @@ const chooseItems: RemoveSelection = async (options) => {
   };
   process.stdin.on("keypress", onKeypress);
   try {
-    return await checkbox({ message: "Select items to quarantine (Esc to cancel)", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12 }, { signal: controller.signal });
+    return await checkbox({ message: "Select items to quarantine", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12, theme: { style: { keysHelpTip: promptKeysHelp } } }, { signal: controller.signal });
   } catch (error: unknown) {
     if (controller.signal.reason === ESCAPE_REASON && error instanceof Error && error.name === "AbortPromptError") return undefined;
     throw error;
