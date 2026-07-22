@@ -3,12 +3,12 @@
 > 日期：2026-07-13
 > 工作目录：`D:\project\agent-hygiene\.worktrees\agent-hygiene-v01`
 > 当前分支：`codex/agent-hygiene-v01`
-> 当前版本：`1.2.0`
+> 当前版本：`2.0.0`
 > 目标版本：`2.0.0`
 > 目标仓库：`git@github.com:panchen451161722/Agent-Hygiene-Doctor.git`
 > npm 包名：`agent-hygiene-cli`
 > 安装后的唯一命令：`ahd`
-> 执行状态：进行中；已获得执行、push、tag 与 pnpm 发布授权。
+> 执行状态：GitHub Actions workflow 已实现并推送；首次 npm bootstrap 与 Trusted Publisher 绑定待完成。
 
 ## 1. 目标与已确定边界
 
@@ -284,6 +284,22 @@ pnpm publish --dry-run
 - 当前 commit 就是准备发布的 commit。
 - `ahd` packed-bin smoke test通过。
 
+## 9.1 首次包的 bootstrap 门禁
+
+npm Trusted Publishing 只能配置在已经存在于 registry 的 package 上。若 `npm view agent-hygiene-cli --registry=https://registry.npmjs.org/` 返回 404，不得直接推送最终版本 tag，因为 OIDC 尚无可绑定的 package。
+
+首次建立 package 的推荐流程：
+
+1. 使用 npm 账号、2FA 和官方 registry，人工发布一个非 `latest` 的 prerelease（例如 `2.0.0-rc.0`，dist-tag 为 `bootstrap`）。不要把临时 token 存入仓库或 GitHub Actions。
+2. 在 npm package Settings → Trusted Publishing 中填写：
+   - Organization or user：`panchen451161722`
+   - Repository：`Agent-Hygiene-Doctor`
+   - Workflow filename：`publish.yml`
+   - Environment：留空
+   - Allowed actions：`npm publish`
+3. 验证 package 设置已经保存；npm 不会在保存时主动验证字段，大小写必须精确。
+4. 再创建并推送最终 tag `v2.0.0`，由 GitHub Actions 通过 OIDC 发布正式版本。
+5. 首次成功后，将 Publishing access 设置为 Require 2FA and disallow tokens，并撤销不再使用的发布 token。
 ## 10. Task H：push、tag 与 pnpm 发布
 
 以下都是外部不可轻易撤销的动作，执行前必须再次取得明确授权。

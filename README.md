@@ -129,7 +129,9 @@ pnpm check
 pnpm verify-pack
 ```
 
-To publish, configure npm Trusted Publishing for GitHub user `panchen451161722`, repository `Agent-Hygiene-Doctor`, and workflow `publish.yml`, with the `npm publish` action allowed. Push a tag matching the package version, such as `v2.0.0`; the workflow checks, packs, and publishes the package without an npm token.
+Tagged releases are published without an npm token through `.github/workflows/publish.yml`. Configure npm Trusted Publishing with GitHub user `panchen451161722`, repository `Agent-Hygiene-Doctor`, workflow filename `publish.yml`, no environment, and the `npm publish` action allowed. Then push a tag matching the package version, such as `v2.0.0`.
+
+npm only allows Trusted Publisher configuration after a package already exists. For the first release of `agent-hygiene-cli`, a maintainer must make one authenticated bootstrap publication (preferably a prerelease such as `2.0.0-rc.0` under a non-`latest` tag), configure the Trusted Publisher, and only then push the final release tag. Subsequent releases are fully tokenless and automatically include npm provenance.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md) for upgrade notes.
 
