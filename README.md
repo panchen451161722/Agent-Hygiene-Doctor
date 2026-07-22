@@ -48,13 +48,15 @@ ahd doctor --format json
 
 ## 安全删除与恢复
 
-交互式清理 Codex 的 Skill 和 MCP：
+按 Agent 交互式清理 Skill 和 MCP：
 
 ```bash
-ahd remove --codex
+ahd remove --agent codex
+ahd remove --agent claude
+ahd remove --agent hermes
 ```
 
-使用空格勾选，按回车确认。被删除的内容会移入本地隔离目录，可以恢复。
+使用空格勾选，按回车确认；按 Esc 退出且不创建删除计划。被删除的内容会移入本地隔离目录，可以恢复。
 
 查看删除记录：
 
@@ -71,7 +73,7 @@ ahd restore <operation-id> --yes
 建议先预览，不修改文件：
 
 ```bash
-ahd remove --codex --dry-run
+ahd remove --agent codex --dry-run
 ```
 
 ## 更多信息

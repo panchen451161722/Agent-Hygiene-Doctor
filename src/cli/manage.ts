@@ -11,8 +11,8 @@ import { scanForManagement } from "../manage/scan.js";
 import { applyRemoval, restoreRemoval } from "../manage/transaction.js";
 
 type Format = "terminal" | "json";
-interface PlanArguments { readonly agents: Agent[]; readonly items: string[]; readonly kind?: ManageKind; readonly dryRun: boolean; readonly format: Format; readonly project?: string; readonly codexShortcut: boolean; }
-export type RemoveSelection = (options: PlanArguments) => Promise<readonly string[]>;
+interface PlanArguments { readonly agents: Agent[]; readonly items: string[]; readonly kind?: ManageKind; readonly dryRun: boolean; readonly format: Format; readonly project?: string; }
+export type RemoveSelection = (options: PlanArguments) => Promise<readonly string[] | undefined>;
 const validAgent = (value: string): value is Agent => value === "codex" || value === "claude" || value === "hermes";
 const isKind = (value: string): value is ManageKind => value === "skill" || value === "mcp";
 const safeError = (error: unknown): string => error instanceof RemovalError ? error.code : "AH-REMOVE-OPERATION";
@@ -30,10 +30,8 @@ const parsePlanArguments = (argv: readonly string[]): PlanArguments => {
   let dryRun = false;
   let format: Format = "terminal";
   let project: string | undefined;
-  let codexShortcut = false;
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
-    if (value === "--codex") { codexShortcut = true; continue; }
     if (value === "--dry-run") { dryRun = true; continue; }
     if (value === "--agent-mode") { format = "json"; continue; }
     if (value === "--agent" || value === "--item" || value === "--kind" || value === "--format" || value === "--project") {
@@ -47,8 +45,7 @@ const parsePlanArguments = (argv: readonly string[]): PlanArguments => {
     }
     throw new RemovalError("AH-REMOVE-INVALID-ITEM");
   }
-  if (codexShortcut && (agents.length > 0 || items.length > 0 || format === "json")) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
-  return { agents: codexShortcut ? ["codex"] : agents, items, ...(kind === undefined ? {} : { kind }), dryRun, format, ...(project === undefined ? {} : { project }), codexShortcut };
+  return { agents, items, ...(kind === undefined ? {} : { kind }), dryRun, format, ...(project === undefined ? {} : { project }) };
 };
 
 const parseExecutionArguments = (argv: readonly string[]): { readonly operationId: string; readonly format: Format } => {
@@ -60,20 +57,31 @@ const parseExecutionArguments = (argv: readonly string[]): { readonly operationI
   throw new RemovalError("AH-REMOVE-CONFIRMATION");
 };
 
+const ESCAPE_REASON = "AH-PROMPT-ESCAPE";
 const chooseItems: RemoveSelection = async (options) => {
   const scanned = await scanForManagement({ agents: options.agents, ...(options.project === undefined ? {} : { project: options.project }) });
   const candidates = scanned.report.inventory.filter((item) => (options.kind === undefined || item.kind === options.kind) && (item.kind === "skill" || item.kind === "mcp"));
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
-  const selected = await checkbox({ message: options.codexShortcut ? "Select Codex items to quarantine" : "Select items to quarantine", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12 });
-  return selected;
+  const controller = new AbortController();
+  const onKeypress = (_input: string, key: { readonly name?: string }): void => {
+    if (key.name === "escape") controller.abort(ESCAPE_REASON);
+  };
+  process.stdin.on("keypress", onKeypress);
+  try {
+    return await checkbox({ message: "Select items to quarantine (Esc to cancel)", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12 }, { signal: controller.signal });
+  } catch (error: unknown) {
+    if (controller.signal.reason === ESCAPE_REASON && error instanceof Error && error.name === "AbortPromptError") return undefined;
+    throw error;
+  } finally {
+    process.stdin.removeListener("keypress", onKeypress);
+  }
 };
 
-const renderCodexComplete = (operation: RemovalOperation): string => `Quarantined ${operation.targets.length} item(s).\nOperation: ${operation.operationId}\nRestore: ahd restore ${operation.operationId} --yes\n`;
+const renderInteractiveComplete = (operation: RemovalOperation): string => `Quarantined ${operation.targets.length} item(s).\nOperation: ${operation.operationId}\nRestore: ahd restore ${operation.operationId} --yes\n`;
 
 export const runRemoveAsync = async (argv: readonly string[], runtime: CliRuntime, select: RemoveSelection = chooseItems): Promise<number> => {
   try {
-    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd remove --codex [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | [--agent <agent>] [--kind <skill|mcp>] [--item <item-id>] [--project <dir>] [--dry-run] [--agent-mode]\n"); return 0; }
-    if (argv[0] !== undefined && !argv[0].startsWith("-") && argv.includes("--codex")) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
+    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd remove --agent <codex|claude|hermes> [--agent <agent>...] [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | --agent <agent> --item <item-id> [--item <item-id>...] [--project <dir>] [--agent-mode]\n"); return 0; }
     if (argv.length > 0 && !argv[0]!.startsWith("-")) {
       const options = parseExecutionArguments(argv);
       const operation = await applyRemoval(new OperationStore(), options.operationId);
@@ -81,13 +89,15 @@ export const runRemoveAsync = async (argv: readonly string[], runtime: CliRuntim
       return 0;
     }
     const options = parsePlanArguments(argv);
-    const selected = options.items.length > 0 ? options.items : await select(options);
+    const interactive = options.items.length === 0;
+    const selected = interactive ? await select(options) : options.items;
+    if (selected === undefined) { runtime.writeStdout("Cancelled.\n"); return 0; }
     if (selected.length === 0) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
     const operation = await planRemoval({ itemIds: selected, agents: options.agents, ...(options.project === undefined ? {} : { project: options.project }) });
-    if (options.codexShortcut) {
+    if (interactive) {
       if (options.dryRun) { runtime.writeStdout(`${renderPlan(operation, options.format)}Dry run: no files changed\n`); return 0; }
       const applied = await applyRemoval(new OperationStore(), operation.operationId);
-      runtime.writeStdout(renderCodexComplete(applied));
+      runtime.writeStdout(renderInteractiveComplete(applied));
       return 0;
     }
     runtime.writeStdout(renderPlan(operation, options.format));

@@ -9,7 +9,7 @@ import { renderLauncher } from "../setup/launcher.js";
 import { isManifest } from "../setup/manifest.js";
 import { installOwnedFiles, uninstallOwnedFiles, type OwnedFileSystem } from "../setup/safe-write.js";
 
-const PACKAGE_VERSION = "2.0.0";
+const PACKAGE_VERSION = "2.0.1";
 
 const nodeOwnedFileSystem: OwnedFileSystem = {
   readFile: (path) => nodeFs.readFile(path, "utf8"),

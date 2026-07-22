@@ -2,6 +2,13 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 2.0.1 - 2026-07-22
+
+### Changed
+
+- Unified interactive removal under `ahd remove --agent <codex|claude|hermes>` and removed the Codex-only shortcut.
+- Pressing Esc now cancels interactive removal without creating or applying a removal plan.
+
 ## 2.0.0 - 2026-07-13
 
 ### Breaking changes

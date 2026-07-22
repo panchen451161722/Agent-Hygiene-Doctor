@@ -39,16 +39,15 @@ const runtime = () => {
   return { runtime: { writeStdout: (text: string) => { stdout += text; }, writeStderr: (text: string) => { stderr += text; } }, output: () => ({ stdout, stderr }) };
 };
 
-describe.sequential("Codex single-step removal shortcut", () => {
-  it("plans and applies selected Codex items in one process", async () => {
+describe.sequential("agent-scoped single-step removal", () => {
+  it("plans and applies interactively selected items in one process", async () => {
     const subject = await fixture();
     const captured = runtime();
     const select: RemoveSelection = async (options) => {
       expect(options.agents).toEqual(["codex"]);
-      expect(options.codexShortcut).toBe(true);
       return subject.ids;
     };
-    await expect(runRemoveAsync(["--codex", "--project", subject.project], captured.runtime, select)).resolves.toBe(0);
+    await expect(runRemoveAsync(["--agent", "codex", "--project", subject.project], captured.runtime, select)).resolves.toBe(0);
     expect(captured.output().stderr).toBe("");
     expect(captured.output().stdout).toContain("Quarantined 2 item(s).");
     expect(captured.output().stdout).toContain("Restore: ahd restore ");
@@ -57,26 +56,28 @@ describe.sequential("Codex single-step removal shortcut", () => {
     await expect(new OperationStore().list()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ status: "applied", itemCount: 2 })]));
   });
 
-  it("leaves selected Codex files untouched in dry-run mode", async () => {
+  it("leaves selected files untouched in dry-run mode", async () => {
     const subject = await fixture();
     const captured = runtime();
-    await expect(runRemoveAsync(["--codex", "--project", subject.project, "--dry-run"], captured.runtime, async () => subject.ids)).resolves.toBe(0);
+    await expect(runRemoveAsync(["--agent", "codex", "--project", subject.project, "--dry-run"], captured.runtime, async () => subject.ids)).resolves.toBe(0);
     expect(captured.output().stdout).toContain("Dry run: no files changed");
     await expect(readFile(join(subject.skill, "SKILL.md"), "utf8")).resolves.toContain("Demo");
     await expect(readFile(subject.config, "utf8")).resolves.toContain("mcp_servers.drop");
   });
 
-  it("refuses the shortcut outside a real terminal", async () => {
-    const captured = runtime();
-    await expect(runRemoveAsync(["--codex"], captured.runtime)).resolves.toBe(2);
-    expect(captured.output().stdout).toBe("");
-    expect(captured.output().stderr).toContain("AH-REMOVE-INVALID-ITEM");
-  });
-  it("rejects conflicting shortcut arguments before selection", async () => {
-    for (const argv of [["--codex", "--agent", "codex"], ["--codex", "--item", "demo"], ["--codex", "--format", "json"], ["--codex", "--agent-mode"], ["123e4567-e89b-42d3-a456-426614174000", "--yes", "--codex"]]) {
+  it("cancels every agent prompt without creating a plan", async () => {
+    for (const agent of ["codex", "claude", "hermes"] as const) {
       const captured = runtime();
-      await expect(runRemoveAsync(argv, captured.runtime, async () => { throw new Error("selection must not run"); })).resolves.toBe(2);
-      expect(captured.output().stderr).toContain("AH-REMOVE-INVALID-ITEM");
+      await expect(runRemoveAsync(["--agent", agent], captured.runtime, async (options) => {
+        expect(options.agents).toEqual([agent]);
+        return undefined;
+      })).resolves.toBe(0);
+      expect(captured.output()).toEqual({ stdout: "Cancelled.\n", stderr: "" });
     }
+  });
+  it("rejects the removed --codex shortcut before selection", async () => {
+    const captured = runtime();
+    await expect(runRemoveAsync(["--codex"], captured.runtime, async () => { throw new Error("selection must not run"); })).resolves.toBe(2);
+    expect(captured.output().stderr).toContain("AH-REMOVE-INVALID-ITEM");
   });
 });

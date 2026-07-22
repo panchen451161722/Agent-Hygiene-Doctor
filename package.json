@@ -1,6 +1,6 @@
 {
   "name": "agent-hygiene-cli",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Offline hygiene scanner and safe recovery workflow for local AI-agent configuration.",
   "license": "MIT",
   "author": "panchen",
