@@ -1,140 +1,85 @@
-# Agent Hygiene CLI
+# Agent Hygiene Doctor
 
-Agent Hygiene CLI is an offline scanner and recovery tool for the local configuration surfaces of Codex, Claude Code, and Hermes. It inventories documented Skills, instructions, MCP definitions, extensions, and configuration files, then emits stable hygiene diagnostics.
+Agent Hygiene Doctor 是一个本地 AI Agent 配置检查与清理工具，安装后的命令是 `ahd`。
 
-## Status
+它可以扫描 Codex、Claude Code 和 Hermes 的 Skills、MCP、指令与配置文件，帮助你发现重复、失效或不安全的配置。扫描在本地完成，`doctor` 命令只读，不会修改文件。
 
-Version `2.0.0` is ready for npm publication and local verification. Tagged releases are published from GitHub Actions with npm Trusted Publishing.
+## 安装
 
-`doctor` is read-only. Version 2.0 renames the executable to `ahd` and retains a Codex-only interactive shortcut for recoverable removal; the existing operation-ID workflow remains available for automation.
+需要 Node.js 22 或更高版本。
 
-## Requirements
-
-- Node.js `22` or newer
-- pnpm `10` or newer for development
-
-## Installation
-
-Install a published release globally:
+使用 pnpm：
 
 ```bash
 pnpm add -g agent-hygiene-cli
 ```
 
-Then run `ahd`.
-
-## Local verification
-
-From a repository checkout:
+也可以使用 npm：
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm check
-node dist/cli/main.js doctor --agent codex
-node dist/cli/main.js doctor --format json
+npm install -g agent-hygiene-cli
 ```
 
-To verify the packed artifact locally, without publishing it:
+验证安装：
 
 ```bash
-pnpm verify-pack
+ahd --version
 ```
 
-After `pnpm build`, the executable is available as `node dist/cli/main.js`. To install the repository checkout globally, use `pnpm add -g .`, then run `ahd`.
+## 开始使用
 
-## Commands
-
-### Doctor
-
-`doctor` performs an offline scan and does not write to agent configuration, credentials, sessions, logs, caches, or project files.
+检查所有支持的 Agent：
 
 ```bash
 ahd doctor
+```
+
+只检查 Codex：
+
+```bash
+ahd doctor --agent codex
+```
+
+输出 JSON：
+
+```bash
 ahd doctor --format json
-ahd doctor --agent codex --agent claude
-ahd doctor --project ./my-project
-ahd doctor --fail-on warning
-ahd doctor --agent-mode
 ```
 
-| Option | Meaning |
-| --- | --- |
-| `--agent <codex|claude|hermes>` | Limit the scan; repeatable. |
-| `--project <path>` | Select a project directory. |
-| `--format <terminal|json>` | Choose human or machine-readable output. |
-| `--agent-mode` | Equivalent to non-interactive JSON output. |
-| `--fail-on <error|warning>` | Select the failure threshold. |
-| `--verbose` | Include additional diagnostic context. |
+## 安全删除与恢复
 
-### Setup
-
-`setup` is the explicit write command for the optional launcher Skill. Use `--dry-run` to preview actions. Write operations require explicit confirmation with `--yes`; `--force` and `--uninstall` are available for the corresponding lifecycle actions.
+交互式清理 Codex 的 Skill 和 MCP：
 
 ```bash
-ahd setup --dry-run
-ahd setup --yes
-ahd setup --uninstall --yes
-```
-
-### Safe remove and restore
-
-`remove` provides an explicit, recoverable workflow for user- and project-owned Skills and supported active MCP definitions. `doctor` remains read-only.
-
-```bash
-# Recommended for an interactive Codex cleanup: select with Space, then Enter
-# immediately quarantines selected entries and prints a restore command.
 ahd remove --codex
+```
 
-# Preview the selected Codex items without changing agent files
-ahd remove --codex --dry-run
+使用空格勾选，按回车确认。被删除的内容会移入本地隔离目录，可以恢复。
 
-# Existing generic interaction still creates a plan; scripts can use exact IDs.
-ahd remove
-ahd remove --item <item-id> --item <item-id> --dry-run
+查看删除记录：
 
-# Apply a previously saved plan, with an explicit confirmation
-ahd remove <operation-id> --yes
-
-# Inspect safe operation summaries, or restore a completed operation
+```bash
 ahd operations
+```
+
+恢复某次操作：
+
+```bash
 ahd restore <operation-id> --yes
 ```
 
-Removal moves a whole Skill directory or the selected MCP configuration node into a private quarantine store. The command rescans and rechecks content fingerprints immediately before writing. If any target cannot be applied or verified, the operation is rolled back. Restore refuses to overwrite a path changed after removal.
-
-Only user/project entries in an active or disabled state are eligible. Managed, plugin-owned, external, unresolved, and candidate entries are displayed in interactive mode but cannot be selected. JSON/JSONC, YAML, and TOML edits are source-range edits; unsupported syntax is refused rather than reformatted.
-
-On Windows the quarantine store is under `%LOCALAPPDATA%\agent-hygiene\quarantine` (falling back to `%USERPROFILE%`); on POSIX it is under `~/.agent-hygiene/quarantine`. Operation manifests are private local recovery metadata and commands never display backup content or physical source paths.
-
-## Safety model
-
-- `doctor` is read-only after startup.
-- `remove` and `restore` are the only additional mutation commands. The Codex-only `remove --codex` interactive path treats the final Enter as confirmation; all other mutations require an operation ID and `--yes`.
-- All reads pass through an injected, bounded filesystem boundary.
-- Paths are segment-checked, canonicalized, and checked for ancestor symlink/junction escapes.
-- Only regular files and directories are traversed; special files are rejected.
-- Reads, directory entries, link hops, parser depth, parser nodes, and concurrency are capped by versioned scan limits.
-- Parser diagnostics never expose library errors, source excerpts, stacks, or credential values.
-- Reports expose root-relative `SourceRef` values rather than host absolute paths.
-- Ordinary strings and undocumented references are not promoted into content roots.
-
-The scanner is designed for accidental misconfiguration and does not claim protection against a hostile same-user process mutating files during a scan.
-
-## Development
-
-Run the complete local verification suite:
+建议先预览，不修改文件：
 
 ```bash
-pnpm check
-pnpm verify-pack
+ahd remove --codex --dry-run
 ```
 
-Tagged releases are published without an npm token through `.github/workflows/publish.yml`. Configure npm Trusted Publishing with GitHub user `panchen451161722`, repository `Agent-Hygiene-Doctor`, workflow filename `publish.yml`, no environment, and the `npm publish` action allowed. Then push a tag matching the package version, such as `v2.0.0`.
+## 更多信息
 
-npm only allows Trusted Publisher configuration after a package already exists. For the first release of `agent-hygiene-cli`, a maintainer must make one authenticated bootstrap publication (preferably a prerelease such as `2.0.0-rc.0` under a non-`latest` tag), configure the Trusted Publisher, and only then push the final release tag. Subsequent releases are fully tokenless and automatically include npm provenance.
-
-See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md) for upgrade notes.
+- [版本记录](CHANGELOG.md)
+- [2.0 升级说明](docs/MIGRATION-2.0.md)
+- [GitHub 项目](https://github.com/panchen451161722/Agent-Hygiene-Doctor)
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT
