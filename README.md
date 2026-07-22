@@ -4,7 +4,7 @@ Agent Hygiene CLI is an offline scanner and recovery tool for the local configur
 
 ## Status
 
-Version `2.0.0` is ready for local installation and verification. It is not represented here as an npm-registry publication: use the repository checkout and the local commands below until a registry release is announced.
+Version `2.0.0` is ready for npm publication and local verification. Tagged releases are published from GitHub Actions with npm Trusted Publishing.
 
 `doctor` is read-only. Version 2.0 renames the executable to `ahd` and retains a Codex-only interactive shortcut for recoverable removal; the existing operation-ID workflow remains available for automation.
 
@@ -13,7 +13,17 @@ Version `2.0.0` is ready for local installation and verification. It is not repr
 - Node.js `22` or newer
 - pnpm `10` or newer for development
 
-## Local install and verification
+## Installation
+
+Install a published release globally:
+
+```bash
+pnpm add -g agent-hygiene-cli
+```
+
+Then run `ahd`.
+
+## Local verification
 
 From a repository checkout:
 
@@ -30,7 +40,7 @@ To verify the packed artifact locally, without publishing it:
 pnpm verify-pack
 ```
 
-After `pnpm build`, the executable is available as `node dist/cli/main.js`. To install the local package globally, use `pnpm add -g .`, then run `ahd`; this is not an npm-registry release.
+After `pnpm build`, the executable is available as `node dist/cli/main.js`. To install the repository checkout globally, use `pnpm add -g .`, then run `ahd`.
 
 ## Commands
 
@@ -118,6 +128,8 @@ Run the complete local verification suite:
 pnpm check
 pnpm verify-pack
 ```
+
+To publish, configure npm Trusted Publishing for GitHub user `panchen451161722`, repository `Agent-Hygiene-Doctor`, and workflow `publish.yml`, with the `npm publish` action allowed. Push a tag matching the package version, such as `v2.0.0`; the workflow checks, packs, and publishes the package without an npm token.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes and [docs/MIGRATION-2.0.md](docs/MIGRATION-2.0.md) for upgrade notes.
 

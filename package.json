@@ -14,7 +14,7 @@
   ],
   "type": "module",
   "bin": {
-    "ahd": "./dist/cli/main.js"
+    "ahd": "dist/cli/main.js"
   },
   "repository": {
     "type": "git",
@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "postbuild": "node scripts/prepare-bin.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

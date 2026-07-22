@@ -55,7 +55,7 @@ const selectItems = (inventory: readonly InventoryItem[], ids: readonly string[]
   const byId = new Map(inventory.map((item) => [item.itemId, item]));
   return ids.map((id) => {
     const item = byId.get(id);
-    if (item === undefined) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
+    if (item === undefined) throw new RemovalError("AH-REMOVE-REFUSED");
     if ((item.kind !== "skill" && item.kind !== "mcp") || (item.scope !== "user" && item.scope !== "project") || !allowedStatus.has(item.status)) throw new RemovalError("AH-REMOVE-REFUSED");
     return item;
   });

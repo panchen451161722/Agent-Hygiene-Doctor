@@ -16,7 +16,7 @@ try {
   if (tarball === undefined) throw new Error("AH-PACK-VERIFY: npm pack produced no tarball");
   const packagePath = join(temp, tarball);
   const installRoot = join(temp, "install");
-  run(npm, ["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", installRoot, packagePath], { stdio: "inherit" });
+  run(npm, ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", installRoot, packagePath], { stdio: "inherit" });
   const installedBin = join(installRoot, "node_modules", ".bin", bin);
   if (!existsSync(installedBin)) throw new Error(`AH-PACK-VERIFY: installed bin is missing (${basename(installedBin)})`);
   const legacyBin = join(installRoot, "node_modules", ".bin", process.platform === "win32" ? "agent-hygiene.cmd" : "agent-hygiene");

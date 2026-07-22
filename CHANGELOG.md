@@ -12,6 +12,8 @@ All notable changes to Agent Hygiene CLI are documented in this file.
 ### Changed
 
 - Added GitHub package metadata for `panchen451161722/Agent-Hygiene-Doctor`.
+- Added tag-triggered npm Trusted Publishing through GitHub Actions.
+- The packed `ahd` entry point is explicitly marked executable.
 - Existing report identifiers, Skill locations, quarantines, operations, and restore data remain compatible.
 
 ## 1.2.0 - 2026-07-13
