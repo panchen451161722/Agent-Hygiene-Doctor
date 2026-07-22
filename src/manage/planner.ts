@@ -8,7 +8,7 @@ import { createOperationId, OperationStore } from "./operation-store.js";
 import { OPERATION_SCHEMA_VERSION, type ManageKind, type OperationTarget, type RemovalOperation, RemovalError } from "./model.js";
 import { scanForManagement } from "./scan.js";
 
-const TOOL_VERSION = "2.0.1";
+const TOOL_VERSION = "2.0.2";
 const allowedStatus = new Set<InventoryItem["status"]>(["active", "disabled"]);
 const isRelative = (path: string): boolean => path !== "." && !path.startsWith("/") && !path.includes("\\") && !path.split("/").some((part) => part === "" || part === "." || part === "..");
 const contains = (root: string, target: string): boolean => {

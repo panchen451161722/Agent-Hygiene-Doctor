@@ -168,7 +168,7 @@ export function parseCliOptions(argv: readonly string[]): CliParseResult {
   const output: string[] = [];
   const program = new Command()
     .name("ahd")
-    .version("2.0.1")
+    .version("2.0.2")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => output.push(text),

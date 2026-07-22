@@ -2,7 +2,7 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
-## Unreleased
+## 2.0.2 - 2026-07-22
 
 ### Changed
 
