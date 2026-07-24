@@ -54,6 +54,20 @@ export class CodexAdapter implements AgentAdapter {
         const diagnostic = safeFsDiagnostic(this.agent, configSource, config);
         if (diagnostic !== undefined) diagnostics.push(diagnostic);
       }
+
+      const skills = await safeFs.readDirectory(codexHome.root, "skills");
+      if (skills.ok) {
+        for (const name of skills.entries) {
+          const relativePath = `skills/${name}/SKILL.md`;
+          const skill = await safeFs.readText(codexHome.root, relativePath);
+          if (skill.ok) {
+            inventory.push(inspectSkill(
+              { frontmatter: "missing", name },
+              { agent: this.agent, source: { rootId: "codex-home", relativePath }, scope: "user", status: "active", loading: "always" },
+            ));
+          }
+        }
+      }
     }
 
     const userHome = await safeFs.admitRoot("home");

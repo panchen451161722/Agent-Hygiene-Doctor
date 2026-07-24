@@ -21,7 +21,20 @@ const isMutable = (item: { kind: string; scope: string; status: string }): boole
 const sourceLabel = (source: { rootId: string; relativePath: string }): string => terminalText(`${source.rootId}:${source.relativePath}`);
 
 const publicOperation = (operation: RemovalOperation) => ({ operationId: operation.operationId, createdAt: operation.createdAt, status: operation.status, itemCount: operation.targets.length, items: operation.targets.map((target) => ({ itemId: target.itemId, agent: target.agent, kind: target.kind, name: target.name, scope: target.scope, source: target.source })) });
-const publicItemLabel = (target: { readonly agent: string; readonly kind: string; readonly name: string; readonly scope: string; readonly source: { readonly rootId: string; readonly relativePath: string } }): string => `[${terminalText(target.agent)}] ${terminalText(target.kind)} ${terminalText(target.name)} — ${terminalText(target.scope)} — ${sourceLabel(target.source)}`;
+interface PublicItem { readonly agent: string; readonly kind: string; readonly name: string; readonly scope: string; readonly source: { readonly rootId: string; readonly relativePath: string }; }
+const publicItemLabel = (target: PublicItem): string => `[${terminalText(target.agent)}] ${terminalText(target.kind)} ${terminalText(target.name)} — ${terminalText(target.scope)} — ${sourceLabel(target.source)}`;
+export const alignedItemLabels = (items: readonly PublicItem[]): readonly string[] => {
+  const fields = items.map((item) => ({
+    agent: terminalText(item.agent),
+    kind: terminalText(item.kind),
+    name: terminalText(item.name),
+    scope: terminalText(item.scope),
+    source: sourceLabel(item.source),
+  }));
+  const width = (key: "agent" | "kind" | "name" | "scope"): number => Math.max(0, ...fields.map((field) => field[key].length));
+  const widths = { agent: width("agent"), kind: width("kind"), name: width("name"), scope: width("scope") };
+  return fields.map((field) => `[${field.agent.padEnd(widths.agent)}] ${field.kind.padEnd(widths.kind)} ${field.name.padEnd(widths.name)} — ${field.scope.padEnd(widths.scope)} — ${field.source}`);
+};
 const renderPlan = (operation: RemovalOperation, format: Format): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `Removal plan: ${operation.operationId}\nItems:\n${operation.targets.map(publicItemLabel).join("\n")}\nExecute: ahd remove ${operation.operationId} --yes\n`;
 const renderComplete = (operation: RemovalOperation, format: Format, verb: "removed" | "restored" | "recovered"): string => format === "json" ? `${JSON.stringify(publicOperation(operation))}\n` : `${verb} ${operation.targets.length} item(s)\n${verb === "removed" ? `Restore: ahd restore ${operation.operationId} --yes\n` : ""}`;
 const parsePlanArguments = (argv: readonly string[]): PlanArguments => {
@@ -63,9 +76,14 @@ const promptKeysHelp = (keys: [key: string, action: string][]): string =>
   [...keys, ["esc", "cancel"] as [string, string]]
     .map(([key, action]) => `${styleText("bold", key)} ${styleText("dim", action)}`)
     .join(styleText("dim", " • "));
+export const selectionPageSize = (itemCount: number, terminalRows: number | undefined): number => {
+  const availableRows = typeof terminalRows === "number" && Number.isInteger(terminalRows) && terminalRows > 0 ? terminalRows : 24;
+  return Math.max(1, Math.min(itemCount, Math.max(6, availableRows - 6)));
+};
 const chooseItems: RemoveSelection = async (options) => {
   const scanned = await scanForManagement({ agents: options.agents, ...(options.project === undefined ? {} : { project: options.project }) });
   const candidates = scanned.report.inventory.filter((item) => (options.kind === undefined || item.kind === options.kind) && (item.kind === "skill" || item.kind === "mcp"));
+  const labels = alignedItemLabels(candidates);
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
   const controller = new AbortController();
   const onKeypress = (_input: string, key: { readonly name?: string }): void => {
@@ -73,7 +91,7 @@ const chooseItems: RemoveSelection = async (options) => {
   };
   process.stdin.on("keypress", onKeypress);
   try {
-    return await checkbox({ message: "Select items to quarantine", choices: candidates.map((item) => ({ name: publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: 12, theme: { style: { keysHelpTip: promptKeysHelp } } }, { signal: controller.signal });
+    return await checkbox({ message: `Select items to quarantine (${candidates.length} total)`, choices: candidates.map((item, index) => ({ name: labels[index] ?? publicItemLabel(item), value: item.itemId, ...(isMutable(item) ? {} : { disabled: "not safely removable" }) })), required: true, pageSize: selectionPageSize(candidates.length, process.stdout.rows), theme: { style: { keysHelpTip: promptKeysHelp } } }, { signal: controller.signal });
   } catch (error: unknown) {
     if (controller.signal.reason === ESCAPE_REASON && error instanceof Error && error.name === "AbortPromptError") return undefined;
     throw error;

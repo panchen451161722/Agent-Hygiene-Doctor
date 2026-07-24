@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { alignedItemLabels, selectionPageSize } from "../../../src/cli/manage.js";
 import { runCliAsync } from "../../../src/cli/main.js";
 import { OPERATION_SCHEMA_VERSION, type RemovalOperation } from "../../../src/manage/model.js";
 import { OperationStore, quarantineRoot } from "../../../src/manage/operation-store.js";
@@ -11,6 +12,24 @@ const directories: string[] = [];
 afterEach(async () => { vi.unstubAllEnvs(); await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
 
 describe("management CLI safety gates", () => {
+  it("shows every candidate when it fits and otherwise uses the terminal height", () => {
+    expect(selectionPageSize(15, 24)).toBe(15);
+    expect(selectionPageSize(40, 24)).toBe(18);
+    expect(selectionPageSize(4, 10)).toBe(4);
+    expect(selectionPageSize(20, undefined)).toBe(18);
+    expect(selectionPageSize(0, 24)).toBe(1);
+  });
+
+  it("aligns interactive item fields into readable columns", () => {
+    expect(alignedItemLabels([
+      { agent: "codex", kind: "mcp", name: "computer-use", scope: "user", source: { rootId: "codex-home", relativePath: "config.toml" } },
+      { agent: "codex", kind: "skill", name: "launch-website", scope: "project", source: { rootId: "codex-home", relativePath: "skills/launch-website/SKILL.md" } },
+    ])).toEqual([
+      "[codex] mcp   computer-use   — user    — codex-home:config.toml",
+      "[codex] skill launch-website — project — codex-home:skills/launch-website/SKILL.md",
+    ]);
+  });
+
   it("requires --yes to execute a removal operation", async () => {
     let stdout = "";
     let stderr = "";

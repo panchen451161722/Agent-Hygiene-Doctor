@@ -15,8 +15,8 @@ const fixture = async () => {
   directories.push(root);
   const home = join(root, "home");
   const project = join(root, "project");
-  const skill = join(home, ".agents", "skills", "demo");
   const codexHome = join(home, ".codex");
+  const skill = join(codexHome, "skills", "demo");
   const config = join(codexHome, "config.toml");
   await mkdir(skill, { recursive: true });
   await mkdir(project, { recursive: true });

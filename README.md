@@ -56,6 +56,8 @@ ahd remove --agent claude
 ahd remove --agent hermes
 ```
 
+Codex 用户 Skill 会从 `$CODEX_HOME/skills`（默认 `~/.codex/skills`）中发现。选择列表会显示候选总数，并根据终端高度分页。
+
 使用空格勾选，按回车确认；按 Esc 退出且不创建删除计划。被删除的内容会移入本地隔离目录，可以恢复。
 
 查看删除记录：

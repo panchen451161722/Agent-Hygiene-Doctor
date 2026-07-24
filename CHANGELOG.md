@@ -2,6 +2,16 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 2.1.0 - 2026-07-23
+
+### Added
+
+- Added discovery and safe removal of user Skills stored under `$CODEX_HOME/skills`.
+
+### Changed
+
+- The interactive removal prompt now shows the candidate count, aligns item fields, and sizes its page to the terminal.
+
 ## 2.0.2 - 2026-07-22
 
 ### Changed
