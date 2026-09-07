@@ -8,7 +8,7 @@ import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
-import { inspectSkill } from "../../inspectors/skill.js";
+import { scanSkillDirectory } from "../shared/skills.js";
 import { projectMcpServers } from "../shared/mcp.js";
 import { resolveMcpCommands } from "../shared/command-resolution.js";
 import { hasClaudeProjectMcpApproval } from "./approval.js";
@@ -46,7 +46,7 @@ export class ClaudeAdapter implements AgentAdapter {
       const mcp = await safeFs.readText(project.root, mcpSource.relativePath);
       if (mcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, mcp.text, mcpSource, "project", 2, projectMcpApproved ? "active" : "unresolved");
       else { const diagnostic = safeFsDiagnostic(this.agent, mcpSource, mcp); if (diagnostic !== undefined) diagnostics.push(diagnostic); }
-      await this.addSkills(safeFs, project.root, ".claude/skills", "project", "project", inventory);
+      await scanSkillDirectory({ safeFs, root: project.root, directory: ".claude/skills", rootId: "project", scope: "project", agent: this.agent, inventory, diagnostics });
     }
 
     const home = await safeFs.admitRoot("claude-home");
@@ -56,7 +56,7 @@ export class ClaudeAdapter implements AgentAdapter {
       await this.addManagedSettings(context, safeFs, home.root, inventory, diagnostics, mcpPrecedence);
       const managedMcp = await safeFs.readText(home.root, "managed-mcp.json");
       if (managedMcp.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, managedMcp.text, { rootId: "claude-home", relativePath: "managed-mcp.json" }, "managed", 5);
-      await this.addSkills(safeFs, home.root, "skills", "claude-home", "user", inventory);
+      await scanSkillDirectory({ safeFs, root: home.root, directory: "skills", rootId: "claude-home", scope: "user", agent: this.agent, inventory, diagnostics });
     }
 
     const applicationHome = await safeFs.admitRoot("home");
@@ -65,16 +65,6 @@ export class ClaudeAdapter implements AgentAdapter {
       if (application.ok) await this.addMcpFile(context, inventory, diagnostics, mcpPrecedence, application.text, { rootId: "home", relativePath: ".claude.json" }, "user", 1);
     }
     return { agent: this.agent, inventory: this.applyMcpPrecedence(inventory, mcpPrecedence), diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
-  }
-
-  private async addSkills(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, directory: string, rootId: string, scope: "user" | "project", inventory: ReturnType<typeof item>[]): Promise<void> {
-    const entries = await safeFs.readDirectory(root, directory);
-    if (!entries.ok) return;
-    for (const name of entries.entries) {
-      const relativePath = `${directory}/${name}/SKILL.md`;
-      const skill = await safeFs.readText(root, relativePath);
-      if (skill.ok) inventory.push(inspectSkill({ frontmatter: "missing", name }, { agent: this.agent, source: { rootId, relativePath }, scope, status: "active", loading: "always" }));
-    }
   }
 
   private async addMcpItems(context: ScanContext, inventory: ReturnType<typeof item>[], precedenceByItemId: Map<string, number>, value: unknown, source: { rootId: string; relativePath: string }, scope: "user" | "project" | "managed", precedence: number, activeStatus: "active" | "unresolved" = "active"): Promise<void> {

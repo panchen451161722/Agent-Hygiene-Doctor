@@ -148,6 +148,7 @@ export class SafeFileSystem {
     let admitted;
     try { admitted = await admitPath(backend, this.options.dialect, root.canonicalPath, relativePath, this.options.limits?.maxLinkHops ?? SCAN_LIMITS_V1.maxLinkHops); }
     catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return diagnostic("not_found");
       if (error instanceof PathPolicyError && error.code === "limit_exceeded") return diagnostic("limit_exceeded");
       return diagnostic("unsafe_reference");
     }

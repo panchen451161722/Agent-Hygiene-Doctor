@@ -27,7 +27,7 @@ describe("doctor CLI runtime", () => {
     const output = capture.stdout.join("");
     expect(output).toContain("Adapters:\n  codex:");
     expect(output).toContain("Inventory:");
-    expect(output).toContain("[codex] instruction AGENTS.md");
+    expect(output).toMatch(/\[codex\]\s+instruction\s+AGENTS\.md/);
     expect(output).toContain("Findings:");
     expect(output).toContain("Diagnostics:");
     expect(capture.stderr).toEqual([]);

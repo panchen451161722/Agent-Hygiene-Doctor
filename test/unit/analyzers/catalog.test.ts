@@ -9,7 +9,7 @@ const context = { agent: "codex" as const, source: { rootId: "project", relative
 describe("shared analysis catalog", () => {
   it("contains a rule for unresolved artifacts", () => {
     expect(getRule("unresolved-artifact")).toBeDefined();
-    expect(RULE_CATALOG.map((rule) => rule.ruleId)).toEqual(["config-invalid", "duplicate-active", "mcp-credential-field", "mcp-package-unpinned", "mcp-plaintext-remote", "mcp-transport-unknown", "unresolved-artifact"]);
+    expect(RULE_CATALOG.map((rule) => rule.ruleId)).toEqual(["skill-metadata-invalid", "config-invalid", "duplicate-active", "mcp-credential-field", "mcp-package-unpinned", "mcp-plaintext-remote", "mcp-transport-unknown", "unresolved-artifact"]);
   });
 
   it("does not infer findings from complete inventory", () => {

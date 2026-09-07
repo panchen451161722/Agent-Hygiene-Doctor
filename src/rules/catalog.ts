@@ -1,5 +1,6 @@
 export interface RuleDefinition { readonly ruleId: string; readonly category: string; readonly defaultSeverity: "info" | "warning" | "error"; readonly title: string; readonly recommendation: string; }
 export const RULE_CATALOG: readonly RuleDefinition[] = Object.freeze([
+  { ruleId: "skill-metadata-invalid", category: "inventory", defaultSeverity: "warning", title: "Skill metadata is missing or invalid", recommendation: "Provide YAML frontmatter with a non-empty name and description in SKILL.md." },
   { ruleId: "config-invalid", category: "configuration", defaultSeverity: "warning", title: "Invalid configuration", recommendation: "Fix the configuration syntax." },
   { ruleId: "duplicate-active", category: "cross-agent", defaultSeverity: "warning", title: "Duplicate active artifact", recommendation: "Remove or rename duplicate artifacts." },
   { ruleId: "mcp-credential-field", category: "mcp", defaultSeverity: "warning", title: "MCP configuration names credential fields", recommendation: "Store credentials outside the MCP configuration where possible and review field usage." },

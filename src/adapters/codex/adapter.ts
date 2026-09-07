@@ -7,7 +7,7 @@ import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
-import { inspectSkill } from "../../inspectors/skill.js";
+import { scanSkillDirectory } from "../shared/skills.js";
 import { projectCodexConfig } from "./config.js";
 import { projectCodexMcp } from "./mcp.js";
 import { resolveMcpCommands } from "../shared/command-resolution.js";
@@ -21,8 +21,9 @@ export class CodexAdapter implements AgentAdapter {
       return { agent: this.agent, inventory: [], diagnostics: [], coverage: "unknown" };
     }
 
-    const inventory = [];
+    const inventory: ReturnType<typeof item>[] = [];
     const diagnostics: Diagnostic[] = [];
+    const skillSettings = new Map<string, { enabled: boolean; precedence: number }>();
     const projectRoot = await safeFs.admitRoot("project");
     if (projectRoot.ok) {
       for (const relativePath of ["AGENTS.override.md", "AGENTS.md"]) {
@@ -34,10 +35,11 @@ export class CodexAdapter implements AgentAdapter {
           ));
         }
       }
+      await scanSkillDirectory({ safeFs, root: projectRoot.root, directory: ".agents/skills", rootId: "project", scope: "project", agent: this.agent, inventory, diagnostics });
       const projectConfigSource = { rootId: "project", relativePath: ".codex/config.toml" } as const;
       const projectConfig = await safeFs.readText(projectRoot.root, projectConfigSource.relativePath);
       if (projectConfig.ok) {
-        await this.addConfig(context, inventory, diagnostics, projectConfig.text, projectConfigSource, "project", 2);
+        await this.addConfig(context, inventory, diagnostics, projectConfig.text, projectConfigSource, "project", 2, skillSettings);
       } else {
         const diagnostic = safeFsDiagnostic(this.agent, projectConfigSource, projectConfig);
         if (diagnostic !== undefined) diagnostics.push(diagnostic);
@@ -49,45 +51,31 @@ export class CodexAdapter implements AgentAdapter {
       const configSource = { rootId: "codex-home", relativePath: "config.toml" } as const;
       const config = await safeFs.readText(codexHome.root, configSource.relativePath);
       if (config.ok) {
-        await this.addConfig(context, inventory, diagnostics, config.text, configSource, "user", 1);
+        await this.addConfig(context, inventory, diagnostics, config.text, configSource, "user", 1, skillSettings);
       } else {
         const diagnostic = safeFsDiagnostic(this.agent, configSource, config);
         if (diagnostic !== undefined) diagnostics.push(diagnostic);
       }
 
-      const skills = await safeFs.readDirectory(codexHome.root, "skills");
-      if (skills.ok) {
-        for (const name of skills.entries) {
-          const relativePath = `skills/${name}/SKILL.md`;
-          const skill = await safeFs.readText(codexHome.root, relativePath);
-          if (skill.ok) {
-            inventory.push(inspectSkill(
-              { frontmatter: "missing", name },
-              { agent: this.agent, source: { rootId: "codex-home", relativePath }, scope: "user", status: "active", loading: "always" },
-            ));
-          }
-        }
+      for (const directory of ["skills", "skills/.system"]) {
+        await scanSkillDirectory({ safeFs, root: codexHome.root, directory, rootId: "codex-home", scope: directory.endsWith(".system") ? "managed" : "user", agent: this.agent, inventory, diagnostics });
       }
     }
 
     const userHome = await safeFs.admitRoot("home");
     if (userHome.ok) {
-      const skills = await safeFs.readDirectory(userHome.root, ".agents/skills");
-      if (skills.ok) {
-        for (const name of skills.entries) {
-          const relativePath = `.agents/skills/${name}/SKILL.md`;
-          const skill = await safeFs.readText(userHome.root, relativePath);
-          if (skill.ok) {
-            inventory.push(inspectSkill(
-              { frontmatter: "missing", name },
-              { agent: this.agent, source: { rootId: "home", relativePath }, scope: "user", status: "active", loading: "always" },
-            ));
-          }
-        }
-      }
+      await scanSkillDirectory({ safeFs, root: userHome.root, directory: ".agents/skills", rootId: "home", scope: "user", agent: this.agent, inventory, diagnostics });
     }
 
-    return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
+    const effectiveInventory = inventory.map((entry) => {
+      if (entry.kind !== "skill" || skillSettings.size === 0) return entry;
+      const root = context.roots.getAbsolutePathForScan(entry.source.rootId);
+      if (root === undefined) return entry;
+      const path = context.paths.join(root, entry.source.relativePath);
+      const setting = [...skillSettings].find(([configured]) => context.paths.compare(configured, path) === 0)?.[1];
+      return setting?.enabled === false ? { ...entry, status: "disabled" as const } : entry;
+    });
+    return { agent: this.agent, inventory: effectiveInventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
   }
 
   private async addConfig(
@@ -98,6 +86,7 @@ export class CodexAdapter implements AgentAdapter {
     source: { rootId: string; relativePath: string },
     scope: "user" | "project",
     precedence: number,
+    skillSettings: Map<string, { enabled: boolean; precedence: number }>,
   ): Promise<void> {
     const parsed = parseToml(text, { source });
     if (!parsed.ok) {
@@ -111,6 +100,17 @@ export class CodexAdapter implements AgentAdapter {
       return;
     }
     projectCodexConfig(parsed.value);
+    if (typeof parsed.value === "object" && parsed.value !== null) {
+      const skills = (parsed.value as Record<string, unknown>).skills;
+      if (typeof skills === "object" && skills !== null && "config" in skills && Array.isArray(skills.config)) {
+        for (const setting of skills.config) {
+          if (typeof setting !== "object" || setting === null || typeof setting.path !== "string" || typeof setting.enabled !== "boolean") continue;
+          if (!context.paths.isAbsolute(setting.path)) continue;
+          const path = context.paths.normalize(setting.path);
+          if (precedence >= (skillSettings.get(path)?.precedence ?? -1)) skillSettings.set(path, { enabled: setting.enabled, precedence });
+        }
+      }
+    }
     inventory.push(item(
       { agent: this.agent, source, scope, status: "active", loading: "always" },
       "configuration",

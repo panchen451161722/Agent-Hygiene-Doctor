@@ -39,7 +39,7 @@ try {
     CODEX_HOME: join(profile, ".codex"),
   };
   const cli = (args) => run(installedBin, args, { encoding: "utf8", env: environment });
-  if (cli(["--version"]).trim() !== "2.1.0") throw new Error("AH-PACK-VERIFY: installed ahd version is incorrect");
+  if (cli(["--version"]).trim() !== "2.2.0") throw new Error("AH-PACK-VERIFY: installed ahd version is incorrect");
   const report = JSON.parse(cli(["doctor", "--agent", "codex", "--project", project, "--format", "json"]));
   if (report.schemaVersion !== 1) throw new Error("AH-PACK-VERIFY: installed bin did not produce report-v1 JSON");
   const skillItem = report.inventory.find((item) => item.kind === "skill" && item.name === "packed-demo");

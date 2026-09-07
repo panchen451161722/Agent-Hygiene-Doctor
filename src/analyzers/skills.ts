@@ -1,7 +1,17 @@
 import type { Finding } from "../core/finding.js";
 import type { InventoryItem } from "../core/inventory.js";
 import { stableId } from "../rules/ids.js";
-const finding = (ruleId: string, item: InventoryItem, title: string, severity: Finding["severity"]): Finding => ({ ruleId, instanceId: stableId([ruleId, item.itemId]), severity, category: "inventory", title, impact: title, evidence: [{ kind: "source", source: item.source }], recommendation: "Review the referenced artifact.", manualSteps: [], confidence: "medium", actionable: true });
-export const analyzeInventory = (items: readonly InventoryItem[]): readonly Finding[] => items.filter((item) => item.status === "unresolved").map((item) => finding("unresolved-artifact", item, "Artifact activation is unresolved", "warning"));
-export const analyzeSkills = analyzeInventory;
 
+export const analyzeSkills = (items: readonly InventoryItem[]): readonly Finding[] => items
+  .filter((entry) => entry.kind === "skill" && entry.facts.type === "skill" &&
+    (entry.facts.frontmatter !== "valid" || !entry.facts.nameUsable || !entry.facts.descriptionUsable))
+  .map((entry): Finding => ({
+    ruleId: "skill-metadata-invalid",
+    instanceId: stableId(["skill-metadata-invalid", entry.itemId]),
+    severity: "warning", category: "inventory",
+    title: "Skill metadata is missing or invalid",
+    impact: "The agent may not discover or select this skill correctly.",
+    evidence: [{ kind: "source", source: entry.source }],
+    recommendation: "Provide YAML frontmatter with a non-empty name and description in SKILL.md.",
+    manualSteps: [], confidence: "high", actionable: true,
+  }));

@@ -8,7 +8,7 @@ import { safeFsDiagnostic } from "../../core/fs/diagnostic.js";
 import { item } from "../../inspectors/common.js";
 import { inspectInstruction } from "../../inspectors/instruction.js";
 import { inspectMcp } from "../../inspectors/mcp.js";
-import { inspectSkill } from "../../inspectors/skill.js";
+import { scanSkillDirectory } from "../shared/skills.js";
 import { projectMcpServers } from "../shared/mcp.js";
 import { resolveMcpCommands } from "../shared/command-resolution.js";
 import { hermesMcpDependsOnEnvironment } from "./activation.js";
@@ -41,20 +41,10 @@ export class HermesAdapter implements AgentAdapter {
       const diagnostic = safeFsDiagnostic(this.agent, configSource, config);
       if (diagnostic !== undefined) diagnostics.push(diagnostic);
     }
-    await this.addSkills(safeFs, root.root, inventory);
+    await scanSkillDirectory({ safeFs, root: root.root, directory: "skills", rootId: "hermes-home", scope: "user", agent: this.agent, inventory, diagnostics });
     await this.addOptionalMcpCatalog(safeFs, root.root, inventory, diagnostics);
     if (context.environment?.HERMES_HOME === undefined) await this.addProfileCandidates(safeFs, root.root, inventory, diagnostics);
     return { agent: this.agent, inventory, diagnostics, coverage: inventory.length > 0 || diagnostics.length > 0 ? "partial" : "unknown" };
-  }
-
-  private async addSkills(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, inventory: ReturnType<typeof item>[]): Promise<void> {
-    const entries = await safeFs.readDirectory(root, "skills");
-    if (!entries.ok) return;
-    for (const name of entries.entries) {
-      const relativePath = `skills/${name}/SKILL.md`;
-      const skill = await safeFs.readText(root, relativePath);
-      if (skill.ok) inventory.push(inspectSkill({ frontmatter: "missing", name }, { agent: this.agent, source: { rootId: "hermes-home", relativePath }, scope: "user", status: "active", loading: "always" }));
-    }
   }
 
   private async addOptionalMcpCatalog(safeFs: NonNullable<ScanContext["safeFs"]>, root: AdmittedRoot, inventory: ReturnType<typeof item>[], diagnostics: Diagnostic[]): Promise<void> {

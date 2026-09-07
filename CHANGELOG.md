@@ -2,6 +2,19 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 2.2.0 - 2026-09-06
+
+### Added
+
+- Added bounded Skill discovery for Codex, Claude Code, and Hermes, including Codex project and system Skill roots.
+- Added Skill metadata findings for missing or invalid YAML frontmatter, names, and descriptions.
+- Added shared local scanning for `doctor` and removal planning so both commands use the same inventory and diagnostics.
+
+### Changed
+
+- Skill discovery now preserves parsed metadata, reports unreadable entries, and uses lazy loading without exposing Skill bodies in reports.
+- Terminal reports now align adapter and inventory columns for easier review.
+
 ## 2.1.0 - 2026-07-23
 
 ### Added

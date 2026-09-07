@@ -2,7 +2,7 @@
 
 Agent Hygiene Doctor 是一个本地 AI Agent 配置检查与清理工具，安装后的命令是 `ahd`。
 
-它可以扫描 Codex、Claude Code 和 Hermes 的 Skills、MCP、指令与配置文件，帮助你发现重复、失效或不安全的配置。扫描在本地完成，`doctor` 命令只读，不会修改文件。
+它可以扫描 Codex、Claude Code 和 Hermes 的 Skills、MCP、指令与配置文件，检查技能元数据和部分配置风险。扫描在本地完成，`doctor` 命令只读，不会修改文件。`Coverage: partial` 表示仍有未覆盖的配置来源或规则，零 finding 不代表完整检查通过。
 
 ## 安装
 
@@ -56,7 +56,7 @@ ahd remove --agent claude
 ahd remove --agent hermes
 ```
 
-Codex 用户 Skill 会从 `$CODEX_HOME/skills`（默认 `~/.codex/skills`）中发现。选择列表会显示候选总数，并根据终端高度分页。
+Codex Skill 扫描包括 `$CODEX_HOME/skills`（默认 `~/.codex/skills`）、`~/.agents/skills`、所选项目的 `.agents/skills` 和 `$CODEX_HOME/skills/.system`。系统技能标记为 managed，不作为普通用户技能删除。插件技能和完整父目录继承仍未覆盖。选择列表会显示可清理候选总数，并根据终端高度分页。
 
 使用空格勾选，按回车确认；按 Esc 退出且不创建删除计划。被删除的内容会移入本地隔离目录，可以恢复。
 
@@ -81,6 +81,7 @@ ahd remove --agent codex --dry-run
 ## 更多信息
 
 - [版本记录](CHANGELOG.md)
+- [Skill 扫描边界与项目结构检查](docs/ARCHITECTURE-REVIEW.md)
 - [2.0 升级说明](docs/MIGRATION-2.0.md)
 - [GitHub 项目](https://github.com/panchen451161722/Agent-Hygiene-Doctor)
 
