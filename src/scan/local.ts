@@ -19,7 +19,7 @@ export interface ScanOptions {
   readonly environment?: NodeJS.ProcessEnv;
 }
 
-const TOOL_VERSION = "2.2.0";
+const TOOL_VERSION = "2.3.0";
 const platform = (): "win32" | "darwin" | "linux" => process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
 const metadataFileSystem = {
   lstat: async (path: string) => {

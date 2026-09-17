@@ -6,7 +6,7 @@ import { renderTerminal } from "../reporters/terminal.js";
 import type { CliRuntime } from "./main.js";
 import type { DoctorCliOptions } from "./options.js";
 
-const TOOL_VERSION = "2.2.0";
+const TOOL_VERSION = "2.3.0";
 const platform = (): "win32" | "darwin" | "linux" => process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
 const selectedAgents = (options: DoctorCliOptions): readonly AgentId[] => options.agents.length > 0 ? options.agents : AGENT_IDS;
 export const runDoctor = (options: DoctorCliOptions, runtime: CliRuntime): number => {

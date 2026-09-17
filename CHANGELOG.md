@@ -2,6 +2,18 @@
 
 All notable changes to Agent Hygiene CLI are documented in this file.
 
+## 2.3.0 - 2026-09-17
+
+### Added
+
+- Added Pi coding agent support through `--agent pi` for `doctor`, `remove`, and `setup`.
+- Added Pi settings, project trust, instructions, recursive and flat Skills, and extension discovery with safe quarantine/restore support.
+- Added Pi report and operation schema coverage plus integration tests for trusted and conditional project resources.
+
+### Changed
+
+- Extended shared Skill discovery to support bounded recursive containers and Pi's top-level Markdown Skill files.
+
 ## 2.2.0 - 2026-09-06
 
 ### Added
