@@ -11,6 +11,7 @@ import { analyzeSkills } from "../analyzers/skills.js";
 import { adapter as claudeAdapter } from "../adapters/claude/adapter.js";
 import { adapter as codexAdapter } from "../adapters/codex/adapter.js";
 import { adapter as hermesAdapter } from "../adapters/hermes/adapter.js";
+import { adapter as piAdapter } from "../adapters/pi/adapter.js";
 
 export interface ScanOptions {
   readonly agents: readonly AgentId[];
@@ -39,7 +40,7 @@ export const scanLocal = async (options: ScanOptions): Promise<{ readonly report
     platform: platform(), selectedWorkingDirectory: projectDirectory, projectRoot: projectDirectory,
     environment: options.environment ?? process.env, fs: metadataFileSystem, backend: nodeFsBackend, toolVersion: TOOL_VERSION,
   });
-  const adapters = { codex: codexAdapter, claude: claudeAdapter, hermes: hermesAdapter };
+  const adapters = { codex: codexAdapter, claude: claudeAdapter, hermes: hermesAdapter, pi: piAdapter };
   const results = await runAdapters(agents.map((agent) => adapters[agent]), context);
   const inventory = results.flatMap((result) => result.inventory);
   const diagnostics = results.flatMap((result) => result.diagnostics);

@@ -33,6 +33,7 @@ export const sourceRoot = (rootId: string, project: string, environment: NodeJS.
     case "codex-home": return environment.CODEX_HOME ?? join(home, ".codex");
     case "claude-home": return environment.CLAUDE_CONFIG_DIR ?? join(home, ".claude");
     case "hermes-home": return environment.HERMES_HOME ?? (process.platform === "win32" ? join(environment.LOCALAPPDATA ?? join(home, "AppData", "Local"), "hermes") : join(home, ".hermes"));
+    case "pi-home": return environment.PI_CODING_AGENT_DIR ?? join(home, ".pi", "agent");
     default: return undefined;
   }
 };
@@ -51,7 +52,17 @@ const skillAllowed = (item: InventoryItem): boolean =>
     (item.source.rootId === "codex-home" && item.source.relativePath.startsWith("skills/"))
   )) ||
   (item.agent === "claude" && ((item.source.rootId === "project" && item.source.relativePath.startsWith(".claude/skills/")) || (item.source.rootId === "claude-home" && item.source.relativePath.startsWith("skills/")))) ||
-  (item.agent === "hermes" && item.source.rootId === "hermes-home" && item.source.relativePath.startsWith("skills/"));
+  (item.agent === "hermes" && item.source.rootId === "hermes-home" && item.source.relativePath.startsWith("skills/")) ||
+  (item.agent === "pi" && ((item.source.rootId === "pi-home" && item.source.relativePath.startsWith("skills/")) || (item.source.rootId === "home" && item.source.relativePath.startsWith(".agents/skills/")) || (item.source.rootId === "project" && (item.source.relativePath.startsWith(".pi/skills/") || item.source.relativePath.startsWith(".agents/skills/")))));
+
+const skillStorage = (item: InventoryItem): "directory" | "file" | undefined => {
+  if (!skillAllowed(item)) return undefined;
+  if (item.source.relativePath.endsWith("/SKILL.md")) return "directory";
+  if (item.agent !== "pi" || !item.source.relativePath.endsWith(".md")) return undefined;
+  const flatPiSkill = (item.source.rootId === "pi-home" && /^skills\/[^/]+\.md$/u.test(item.source.relativePath)) ||
+    (item.source.rootId === "project" && /^\.pi\/skills\/[^/]+\.md$/u.test(item.source.relativePath));
+  return flatPiSkill ? "file" : undefined;
+};
 
 const selectItems = (inventory: readonly InventoryItem[], ids: readonly string[]): readonly InventoryItem[] => {
   if (ids.length === 0 || new Set(ids).size !== ids.length) throw new RemovalError("AH-REMOVE-INVALID-ITEM");
@@ -68,7 +79,7 @@ export const planRemoval = async (request: PlanRequest): Promise<RemovalOperatio
   const environment = request.environment ?? process.env;
   const scanned = await scanForManagement({ agents: request.agents, ...(request.project === undefined ? {} : { project: request.project }), environment });
   const items = selectItems(scanned.report.inventory, request.itemIds);
-  const preliminary: Array<{ readonly item: InventoryItem; readonly absolutePath: string; readonly rootPath: string; readonly kind: ManageKind; readonly preImageHash: string; readonly locator?: { readonly key: McpKey; readonly format: McpFormat; readonly name: string } }> = [];
+  const preliminary: Array<{ readonly item: InventoryItem; readonly absolutePath: string; readonly rootPath: string; readonly kind: ManageKind; readonly preImageHash: string; readonly skillStorage?: "directory" | "file"; readonly locator?: { readonly key: McpKey; readonly format: McpFormat; readonly name: string } }> = [];
   for (const item of items) {
     if (!isRelative(item.source.relativePath)) throw new RemovalError("AH-REMOVE-REFUSED");
     const root = sourceRoot(item.source.rootId, scanned.projectDirectory, environment);
@@ -76,11 +87,12 @@ export const planRemoval = async (request: PlanRequest): Promise<RemovalOperatio
     const sourcePath = resolve(root, ...item.source.relativePath.split("/"));
     if (!contains(root, sourcePath)) throw new RemovalError("AH-REMOVE-REFUSED");
     if (item.kind === "skill") {
-      if (!skillAllowed(item) || !item.source.relativePath.endsWith("/SKILL.md")) throw new RemovalError("AH-REMOVE-REFUSED");
-      const absolutePath = dirname(sourcePath);
+      const storage = skillStorage(item);
+      if (storage === undefined) throw new RemovalError("AH-REMOVE-REFUSED");
+      const absolutePath = storage === "directory" ? dirname(sourcePath) : sourcePath;
       if (!contains(root, absolutePath)) throw new RemovalError("AH-REMOVE-REFUSED");
       await assertNoLinksAlongPath(root, absolutePath);
-      preliminary.push({ item, absolutePath, rootPath: root, kind: "skill", preImageHash: await hashDirectory(absolutePath) });
+      preliminary.push({ item, absolutePath, rootPath: root, kind: "skill", preImageHash: storage === "directory" ? await hashDirectory(absolutePath) : await hashFile(absolutePath), ...(storage === "file" ? { skillStorage: storage } : {}) });
     } else {
       const locator = locatorFor(item);
       if (locator === undefined) throw new RemovalError("AH-REMOVE-REFUSED");
@@ -107,12 +119,13 @@ export const planRemoval = async (request: PlanRequest): Promise<RemovalOperatio
   let backupIndex = 0;
   const targets: OperationTarget[] = [];
   for (const entry of preliminary) {
-    const backupPath = backups.get(entry.absolutePath) ?? `backups/${entry.kind === "skill" ? "skill" : "source"}-${String(++backupIndex).padStart(4, "0")}${entry.kind === "skill" ? "" : ".bin"}`;
+    const backupPath = backups.get(entry.absolutePath) ?? `backups/${entry.kind === "skill" ? "skill" : "source"}-${String(++backupIndex).padStart(4, "0")}${entry.kind === "skill" && entry.skillStorage !== "file" ? "" : ".bin"}`;
     backups.set(entry.absolutePath, backupPath);
     targets.push({
       itemId: entry.item.itemId, agent: entry.item.agent, kind: entry.kind, name: entry.item.name, scope: entry.item.scope as "user" | "project",
       source: entry.item.source, absolutePath: entry.absolutePath, rootPath: entry.rootPath, preImageHash: entry.preImageHash,
       plannedPostImageHash: entry.kind === "skill" ? (await import("./operation-store.js")).absentHash() : await hashFileContent(mcpOutputs.get(entry.absolutePath) as string), backupPath,
+      ...(entry.skillStorage === undefined ? {} : { skillStorage: entry.skillStorage }),
       ...(entry.locator === undefined ? {} : { locator: { key: entry.locator.key, name: entry.locator.name, format: entry.locator.format } }),
     });
   }

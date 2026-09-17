@@ -12,7 +12,7 @@ const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const STATUSES: readonly OperationStatus[] = ["planned", "applying", "applied", "restoring", "restored", "rolled_back", "failed"];
 const OPERATION_KEYS = new Set(["schemaVersion", "operationId", "toolVersion", "createdAt", "status", "projectDirectory", "targets", "errorCode", "appliedAt", "restoredAt"]);
-const TARGET_KEYS = new Set(["itemId", "agent", "kind", "name", "scope", "source", "absolutePath", "rootPath", "preImageHash", "plannedPostImageHash", "backupPath", "locator"]);
+const TARGET_KEYS = new Set(["itemId", "agent", "kind", "name", "scope", "source", "absolutePath", "rootPath", "preImageHash", "plannedPostImageHash", "backupPath", "skillStorage", "locator"]);
 const SOURCE_KEYS = new Set(["rootId", "relativePath"]);
 const LOCATOR_KEYS = new Set(["key", "name", "format"]);
 
@@ -52,11 +52,13 @@ const writeAtomic = async (path: string, text: string): Promise<void> => {
 
 const validTarget = (value: unknown): boolean => {
   const target = asRecord(value);
-  if (target === undefined || !onlyKeys(target, TARGET_KEYS) || typeof target.itemId !== "string" || !["codex", "claude", "hermes"].includes(String(target.agent)) || !["skill", "mcp"].includes(String(target.kind)) || typeof target.name !== "string" || !["user", "project"].includes(String(target.scope)) || typeof target.absolutePath !== "string" || typeof target.rootPath !== "string" || !safeTargetPath(target.rootPath, target.absolutePath) || !isHash(target.preImageHash) || !isHash(target.plannedPostImageHash) || typeof target.backupPath !== "string" || !safeBackupPath(target.backupPath)) return false;
+  if (target === undefined || !onlyKeys(target, TARGET_KEYS) || typeof target.itemId !== "string" || !["codex", "claude", "hermes", "pi"].includes(String(target.agent)) || !["skill", "mcp"].includes(String(target.kind)) || typeof target.name !== "string" || !["user", "project"].includes(String(target.scope)) || typeof target.absolutePath !== "string" || typeof target.rootPath !== "string" || !safeTargetPath(target.rootPath, target.absolutePath) || !isHash(target.preImageHash) || !isHash(target.plannedPostImageHash) || typeof target.backupPath !== "string" || !safeBackupPath(target.backupPath)) return false;
   const source = asRecord(target.source);
   if (source === undefined || !onlyKeys(source, SOURCE_KEYS) || typeof source.rootId !== "string" || typeof source.relativePath !== "string") return false;
   try { assertValidSourceRef({ rootId: source.rootId, relativePath: source.relativePath }); } catch { return false; }
-  if (target.locator === undefined) return target.kind === "skill";
+  if (target.kind === "skill") return target.locator === undefined && (target.skillStorage === undefined || target.skillStorage === "directory" || target.skillStorage === "file");
+  if (target.skillStorage !== undefined) return false;
+  if (target.locator === undefined) return false;
   const locator = asRecord(target.locator);
   return target.kind === "mcp" && locator !== undefined && onlyKeys(locator, LOCATOR_KEYS) && ["mcp_servers", "mcpServers"].includes(String(locator.key)) && typeof locator.name === "string" && ["toml", "json", "yaml"].includes(String(locator.format));
 };

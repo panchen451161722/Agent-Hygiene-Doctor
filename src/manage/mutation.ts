@@ -91,6 +91,11 @@ export const removeDirectoryChecked = async (path: string): Promise<void> => {
   await fs.rmdir(path);
 };
 
+export const removeFileChecked = async (path: string): Promise<void> => {
+  await assertRegularFile(path);
+  await fs.unlink(path);
+};
+
 export const writeAtomic = async (path: string, content: Uint8Array): Promise<void> => {
   await assertRegularFile(path);
   const temporary = join(dirname(path), `.${basename(path)}.agent-hygiene-${process.pid}-${Date.now()}.tmp`);

@@ -14,7 +14,7 @@ import { applyRemoval, restoreRemoval } from "../manage/transaction.js";
 type Format = "terminal" | "json";
 interface PlanArguments { readonly agents: Agent[]; readonly items: string[]; readonly kind?: ManageKind; readonly dryRun: boolean; readonly format: Format; readonly project?: string; }
 export type RemoveSelection = (options: PlanArguments) => Promise<readonly string[] | undefined>;
-const validAgent = (value: string): value is Agent => value === "codex" || value === "claude" || value === "hermes";
+const validAgent = (value: string): value is Agent => value === "codex" || value === "claude" || value === "hermes" || value === "pi";
 const isKind = (value: string): value is ManageKind => value === "skill" || value === "mcp";
 const safeError = (error: unknown): string => error instanceof RemovalError ? error.code : "AH-REMOVE-OPERATION";
 const isMutable = (item: { kind: string; scope: string; status: string }): boolean => (item.kind === "skill" || item.kind === "mcp") && (item.scope === "user" || item.scope === "project") && (item.status === "active" || item.status === "disabled");
@@ -104,7 +104,7 @@ const renderInteractiveComplete = (operation: RemovalOperation): string => `Quar
 
 export const runRemoveAsync = async (argv: readonly string[], runtime: CliRuntime, select: RemoveSelection = chooseItems): Promise<number> => {
   try {
-    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd remove --agent <codex|claude|hermes> [--agent <agent>...] [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | --agent <agent> --item <item-id> [--item <item-id>...] [--project <dir>] [--agent-mode]\n"); return 0; }
+    if (argv.length === 1 && argv[0] === "--help") { runtime.writeStdout("Usage: ahd remove --agent <codex|claude|hermes|pi> [--agent <agent>...] [--kind <skill|mcp>] [--project <dir>] [--dry-run] | [operation-id] --yes [--format json] | --agent <agent> --item <item-id> [--item <item-id>...] [--project <dir>] [--agent-mode]\n"); return 0; }
     if (argv.length > 0 && !argv[0]!.startsWith("-")) {
       const options = parseExecutionArguments(argv);
       const operation = await applyRemoval(new OperationStore(), options.operationId);
