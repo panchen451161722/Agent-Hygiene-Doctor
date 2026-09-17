@@ -20,7 +20,7 @@ export class CliError extends Error {
 
 const CLI_ERROR_DETAILS: Record<CliErrorCode, string> = {
   "AH-CLI-INVALID-AGENT":
-    "Unsupported agent. Expected codex, claude, or hermes.",
+    "Unsupported agent. Expected codex, claude, hermes, or pi.",
   "AH-CLI-INVALID-ARGUMENT": "Invalid command-line arguments.",
 };
 
@@ -39,7 +39,7 @@ export function formatCliError(error: CliError): string {
   return `${error.code}: ${detail}`;
 }
 
-export type Agent = "codex" | "claude" | "hermes";
+export type Agent = "codex" | "claude" | "hermes" | "pi";
 export type OutputFormat = "terminal" | "json";
 export type FailureLevel = "error" | "warning";
 
@@ -93,7 +93,7 @@ interface RawSetupOptions extends RawCommonOptions {
   uninstall?: boolean;
 }
 
-const SUPPORTED_AGENTS: readonly Agent[] = ["codex", "claude", "hermes"];
+const SUPPORTED_AGENTS: readonly Agent[] = ["codex", "claude", "hermes", "pi"];
 
 function collectAgent(value: string, previous: Agent[]): Agent[] {
   if (!SUPPORTED_AGENTS.includes(value as Agent)) {

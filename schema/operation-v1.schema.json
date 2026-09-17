@@ -24,7 +24,7 @@
         "required": ["itemId", "agent", "kind", "name", "scope", "source", "absolutePath", "rootPath", "preImageHash", "plannedPostImageHash", "backupPath"],
         "properties": {
           "itemId": { "type": "string" },
-          "agent": { "enum": ["codex", "claude", "hermes"] },
+          "agent": { "enum": ["codex", "claude", "hermes", "pi"] },
           "kind": { "enum": ["skill", "mcp"] },
           "name": { "type": "string" },
           "scope": { "enum": ["user", "project"] },
@@ -34,6 +34,7 @@
           "preImageHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "plannedPostImageHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
           "backupPath": { "type": "string", "pattern": "^backups/" },
+          "skillStorage": { "enum": ["directory", "file"] },
           "locator": { "type": "object", "additionalProperties": false, "required": ["key", "name", "format"], "properties": { "key": { "enum": ["mcp_servers", "mcpServers"] }, "name": { "type": "string" }, "format": { "enum": ["json", "yaml", "toml"] } } }
         }
       }

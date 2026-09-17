@@ -66,7 +66,7 @@ describe.sequential("agent-scoped single-step removal", () => {
   });
 
   it("cancels every agent prompt without creating a plan", async () => {
-    for (const agent of ["codex", "claude", "hermes"] as const) {
+    for (const agent of ["codex", "claude", "hermes", "pi"] as const) {
       const captured = runtime();
       await expect(runRemoveAsync(["--agent", agent], captured.runtime, async (options) => {
         expect(options.agents).toEqual([agent]);

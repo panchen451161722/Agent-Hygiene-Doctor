@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { assertMcpPresent, removeMcpFromText } from "./mcp-editor.js";
-import { assertNoLinksAlongPath, assertRegularFile, copyDirectoryChecked, hashDirectory, hashFile, removeDirectoryChecked, writeAtomic } from "./mutation.js";
+import { assertNoLinksAlongPath, assertRegularFile, copyDirectoryChecked, hashDirectory, hashFile, removeDirectoryChecked, removeFileChecked, writeAtomic } from "./mutation.js";
 import { absentHash, type OperationStore } from "./operation-store.js";
 import { type RemovalOperation, type OperationTarget, RemovalError } from "./model.js";
 import { scanForManagement } from "./scan.js";
@@ -11,9 +11,10 @@ import { sourceRoot } from "./planner.js";
 
 const targetKey = (target: OperationTarget): string => `${target.kind}:${target.absolutePath}`;
 const backupPath = (store: OperationStore, operation: RemovalOperation, target: OperationTarget): string => join(store.operationDirectory(operation.operationId), target.backupPath);
+const isDirectorySkill = (target: OperationTarget): boolean => target.kind === "skill" && target.skillStorage !== "file";
 const currentHash = async (target: OperationTarget): Promise<string> => {
   await assertNoLinksAlongPath(target.rootPath, target.absolutePath);
-  return target.kind === "skill" ? hashDirectory(target.absolutePath) : hashFile(target.absolutePath);
+  return isDirectorySkill(target) ? hashDirectory(target.absolutePath) : hashFile(target.absolutePath);
 };
 const sourceTargets = (targets: readonly OperationTarget[]): readonly OperationTarget[] => {
   const seen = new Set<string>();
@@ -41,7 +42,7 @@ const verifyInventory = async (operation: RemovalOperation, expectedPresent: boo
     const root = sourceRoot(target.source.rootId, operation.projectDirectory ?? process.cwd(), process.env);
     const relativePath = target.source.relativePath;
     const resolvedSource = root === undefined || relativePath.length === 0 || relativePath.includes("\\") || relativePath.split("/").some((part) => part.length === 0 || part === "." || part === "..") ? undefined : resolve(root, ...relativePath.split("/"));
-    const expectedPath = resolvedSource === undefined ? undefined : target.kind === "skill" ? dirname(resolvedSource) : resolvedSource;
+    const expectedPath = resolvedSource === undefined ? undefined : isDirectorySkill(target) ? dirname(resolvedSource) : resolvedSource;
     const pathMatches = root !== undefined && resolve(target.rootPath) === resolve(root) && expectedPath !== undefined && resolve(target.absolutePath) === expectedPath;
     if (!pathMatches) throw new RemovalError("AH-REMOVE-STALE");
     const identityMatches = item !== undefined && item.agent === target.agent && item.kind === target.kind && item.name === target.name && item.scope === target.scope && item.source.rootId === target.source.rootId && item.source.relativePath === target.source.relativePath;
@@ -71,7 +72,7 @@ const backupAll = async (store: OperationStore, operation: RemovalOperation): Pr
   for (const target of sourceTargets(operation.targets)) {
     const destination = backupPath(store, operation, target);
     await fs.mkdir(dirname(destination), { recursive: true, mode: 0o700 });
-    if (target.kind === "skill") await copyDirectoryChecked(target.absolutePath, destination);
+    if (isDirectorySkill(target)) await copyDirectoryChecked(target.absolutePath, destination);
     else {
       await assertRegularFile(target.absolutePath);
       await fs.copyFile(target.absolutePath, destination);
@@ -85,6 +86,16 @@ const restoreSkill = async (source: OperationTarget, backup: string): Promise<vo
   await fs.mkdir(dirname(source.absolutePath), { recursive: true, mode: 0o700 });
   const temporary = `${source.absolutePath}.agent-hygiene-restore-${Date.now()}`;
   await copyDirectoryChecked(backup, temporary);
+  await fs.rename(temporary, source.absolutePath);
+};
+
+const restoreSkillFile = async (source: OperationTarget, backup: string): Promise<void> => {
+  await assertRegularFile(backup);
+  if (await hashFile(backup) !== source.preImageHash) throw new RemovalError("AH-REMOVE-RESTORE-CONFLICT");
+  await fs.mkdir(dirname(source.absolutePath), { recursive: true, mode: 0o700 });
+  const temporary = `${source.absolutePath}.agent-hygiene-restore-${Date.now()}`;
+  await fs.copyFile(backup, temporary);
+  await fs.chmod(temporary, 0o600).catch(() => undefined);
   await fs.rename(temporary, source.absolutePath);
 };
 
@@ -114,7 +125,8 @@ const restorePreimages = async (store: OperationStore, operation: RemovalOperati
   try {
     for (const target of pending) {
       const backup = backupPath(store, operation, target);
-      if (target.kind === "skill") await restoreSkill(target, backup);
+      if (isDirectorySkill(target)) await restoreSkill(target, backup);
+      else if (target.kind === "skill") await restoreSkillFile(target, backup);
       else await writeAtomic(target.absolutePath, await fs.readFile(backup));
       restored.push(target);
       await store.updateJournal(operation.operationId, journalStatus, [], [], [targetKey(target)]);
@@ -147,7 +159,10 @@ const configPostText = async (store: OperationStore, operation: RemovalOperation
 const applyPostimages = async (store: OperationStore, operation: RemovalOperation, targets: readonly OperationTarget[]): Promise<void> => {
   for (const target of sourceTargets(targets.filter((item) => item.kind === "skill"))) {
     const stat = await fs.lstat(target.absolutePath).catch(() => undefined);
-    if (stat !== undefined) await removeDirectoryChecked(target.absolutePath);
+    if (stat !== undefined) {
+      if (isDirectorySkill(target)) await removeDirectoryChecked(target.absolutePath);
+      else await removeFileChecked(target.absolutePath);
+    }
   }
   for (const group of configuredGroups(targets)) {
     const first = group[0];
@@ -174,8 +189,12 @@ const forceRollbackAttempted = async (store: OperationStore, operation: RemovalO
     const backup = backupPath(store, operation, target);
     if (target.kind === "skill") {
       await assertNoLinksAlongPath(target.rootPath, dirname(target.absolutePath));
-      if (await fs.lstat(target.absolutePath).catch(() => undefined) !== undefined) await removeDirectoryChecked(target.absolutePath);
-      await restoreSkill(target, backup);
+      if (await fs.lstat(target.absolutePath).catch(() => undefined) !== undefined) {
+        if (isDirectorySkill(target)) await removeDirectoryChecked(target.absolutePath);
+        else await removeFileChecked(target.absolutePath);
+      }
+      if (isDirectorySkill(target)) await restoreSkill(target, backup);
+      else await restoreSkillFile(target, backup);
     } else await writeAtomic(target.absolutePath, await fs.readFile(backup));
     await store.updateJournal(operation.operationId, "applying", [], [], [targetKey(target)]);
   }
@@ -217,7 +236,8 @@ export const applyRemoval = async (store: OperationStore, operationId: string): 
     await applyMcpGroups(store, applying);
     for (const target of applying.targets.filter((item) => item.kind === "skill")) {
       await store.updateJournal(applying.operationId, "applying", [targetKey(target)]);
-      await removeDirectoryChecked(target.absolutePath);
+      if (isDirectorySkill(target)) await removeDirectoryChecked(target.absolutePath);
+      else await removeFileChecked(target.absolutePath);
       await store.updateJournal(applying.operationId, "applying", [], [targetKey(target)]);
     }
     await verifyPostImages(applying);

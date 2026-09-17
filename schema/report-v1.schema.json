@@ -17,7 +17,7 @@
     "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
   },
   "$defs": {
-    "agent": { "enum": ["codex", "claude", "hermes"] },
+    "agent": { "enum": ["codex", "claude", "hermes", "pi"] },
     "coverage": { "enum": ["complete", "partial", "unknown"] },
     "severity": { "enum": ["info", "warning", "error"] },
     "diagnosticCode": {

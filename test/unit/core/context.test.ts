@@ -23,6 +23,7 @@ describe("createScanContext", () => {
   it("uses the documented native Windows Hermes home when no override is set", async () => {
     const context = await createScanContext({ platform: "win32", paths: win32Dialect, selectedWorkingDirectory: "C:\\repo", projectRoot: "C:\\repo", environment: { USERPROFILE: "C:\\Users\\alice" }, fs: { lstat: async () => null }, toolVersion: "1.1.0" });
     expect(context.roots.getAbsolutePathForScan("hermes-home")).toBe("C:\\Users\\alice\\AppData\\Local\\hermes");
+    expect(context.roots.getAbsolutePathForScan("pi-home")).toBe("C:\\Users\\alice\\.pi\\agent");
   });
   it("rejects Windows relative and root-relative working directories", async () => {
     const base = { platform: "win32" as const, paths: win32Dialect, environment: { USERPROFILE: "C:\\Users\\alice" }, fs: { lstat: async () => null }, toolVersion: "1.1.0" };
@@ -53,6 +54,6 @@ describe("createScanContext", () => {
     const context = await createScanContext({ platform: "linux", paths: posixDialect, selectedWorkingDirectory: "/repo", projectRoot: "/repo", environment: { HOME: "/home/alice" }, fs: { lstat: async () => "directory" as const }, backend, toolVersion: "1.1.0" });
     expect(context.safeFs).toBeDefined();
     expect(context.safeFs?.semaphore).toBe(context.ioSemaphore);
-    expect(context.roots.descriptors().map((root) => root.id)).toEqual(expect.arrayContaining(["codex-home", "claude-home", "hermes-home"]));
+    expect(context.roots.descriptors().map((root) => root.id)).toEqual(expect.arrayContaining(["codex-home", "claude-home", "hermes-home", "pi-home"]));
   });
 });

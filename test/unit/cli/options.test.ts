@@ -35,13 +35,13 @@ describe("parseCliOptions", () => {
     {
       name: "doctor flags",
       argv: [
-        "doctor", "--agent", "codex", "--agent", "claude",
+        "doctor", "--agent", "codex", "--agent", "pi",
         "--project", "./fixture", "--format", "json",
         "--fail-on", "warning", "--verbose",
       ],
       expected: {
         command: "doctor",
-        agents: ["codex", "claude"],
+        agents: ["codex", "pi"],
         project: "./fixture",
         format: "json",
         agentMode: false,
@@ -68,12 +68,12 @@ describe("parseCliOptions", () => {
     {
       name: "setup flags",
       argv: [
-        "setup", "--agent", "codex", "--agent", "hermes",
+        "setup", "--agent", "codex", "--agent", "pi",
         "--dry-run", "--yes", "--force", "--uninstall",
       ],
       expected: {
         command: "setup",
-        agents: ["codex", "hermes"],
+        agents: ["codex", "pi"],
         dryRun: true,
         yes: true,
         force: true,

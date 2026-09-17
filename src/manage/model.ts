@@ -13,7 +13,7 @@ export type RemovalErrorCode =
 
 export interface SafeItemRef {
   readonly itemId: string;
-  readonly agent: "codex" | "claude" | "hermes";
+  readonly agent: "codex" | "claude" | "hermes" | "pi";
   readonly kind: ManageKind;
   readonly name: string;
   readonly scope: "user" | "project";
@@ -28,6 +28,8 @@ export interface OperationTarget extends SafeItemRef {
   readonly preImageHash: string;
   readonly plannedPostImageHash: string;
   readonly backupPath: string;
+  /** Filesystem shape for a skill target. Omitted records are legacy directories. */
+  readonly skillStorage?: "directory" | "file";
   readonly locator?: { readonly key: "mcp_servers" | "mcpServers"; readonly name: string; readonly format: "toml" | "json" | "yaml" };
 }
 

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { adapter as codex } from "../../src/adapters/codex/adapter.js";
 import { adapter as claude } from "../../src/adapters/claude/adapter.js";
 import { adapter as hermes } from "../../src/adapters/hermes/adapter.js";
+import { adapter as pi } from "../../src/adapters/pi/adapter.js";
+import { posixDialect } from "../../src/core/path-dialect.js";
 
-const context = (files: Record<string, string>, directories: Record<string, readonly string[]> = {}) => { const root = {} as never; const safeFs = { admitRoot: async () => ({ ok: true as const, root }), readText: async (_root: unknown, path: string) => files[path] === undefined ? { ok: false as const, diagnostic: { code: "not_found" as const } } : { ok: true as const, text: files[path] }, readDirectory: async (_root: unknown, path: string) => directories[path] === undefined ? { ok: false as const, diagnostic: { code: "not_found" as const } } : { ok: true as const, entries: directories[path] } }; return { safeFs, genericProjectRoot: "/repo" } as never; };
+const context = (files: Record<string, string>, directories: Record<string, readonly string[]> = {}) => { const root = {} as never; const safeFs = { admitRoot: async () => ({ ok: true as const, root }), readText: async (_root: unknown, path: string) => files[path] === undefined ? { ok: false as const, diagnostic: { code: "not_found" as const } } : { ok: true as const, text: files[path] }, readDirectory: async (_root: unknown, path: string) => directories[path] === undefined ? { ok: false as const, diagnostic: { code: "not_found" as const } } : { ok: true as const, entries: directories[path] } }; return { safeFs, genericProjectRoot: "/repo", selectedWorkingDirectory: "/repo", paths: posixDialect } as never; };
 
 describe("live adapter file projections", () => {
   it("marks partial coverage when Codex finds only a supported surface", async () => { const result = await codex.scan(context({ "AGENTS.md": "rules" })); expect(result.inventory).toHaveLength(1); expect(result.inventory[0]?.agent).toBe("codex"); expect(result.coverage).toBe("partial"); });
@@ -33,5 +35,38 @@ describe("live adapter file projections", () => {
   it("keeps Hermes MCPs with environment references unresolved", async () => {
     const result = await hermes.scan(context({ "config.yaml": "mcp_servers:\n  dynamic:\n    command: ${MCP_COMMAND}" }));
     expect(result.inventory.find((entry) => entry.kind === "mcp")?.status).toBe("unresolved");
+  });
+  it("projects Pi settings, recursive and flat skills, and global extensions", async () => {
+    const result = await pi.scan(context(
+      { "settings.json": "{\"defaultProjectTrust\":\"always\"}", "skills/group/nested/SKILL.md": "skill", "skills/flat.md": "skill", "extensions/review.ts": "export default () => undefined" },
+      { "skills": ["group", "flat.md"], "skills/group": ["nested"], "skills/group/nested": [], "extensions": ["review.ts"] },
+    ));
+    expect(result.inventory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "configuration", source: { rootId: "pi-home", relativePath: "settings.json" }, status: "active" }),
+      expect.objectContaining({ kind: "skill", source: { rootId: "pi-home", relativePath: "skills/group/nested/SKILL.md" }, loading: "lazy" }),
+      expect.objectContaining({ kind: "skill", source: { rootId: "pi-home", relativePath: "skills/flat.md" }, loading: "lazy" }),
+      expect.objectContaining({ kind: "hook", source: { rootId: "pi-home", relativePath: "extensions/review.ts" }, status: "active" }),
+    ]));
+  });
+  it("uses the closest saved Pi trust decision for project resources", async () => {
+    const result = await pi.scan(context(
+      { "settings.json": "{\"defaultProjectTrust\":\"always\"}", "trust.json": "{\"/repo\":false}", ".pi/settings.json": "{}", ".pi/skills/demo/SKILL.md": "skill", "AGENTS.md": "rules" },
+      { ".pi/skills": ["demo"], ".pi/skills/demo": [] },
+    ));
+    expect(result.inventory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "instruction", source: { rootId: "project", relativePath: "AGENTS.md" }, status: "active", loading: "always" }),
+      expect.objectContaining({ kind: "configuration", source: { rootId: "project", relativePath: ".pi/settings.json" }, status: "disabled", loading: "conditional" }),
+      expect.objectContaining({ kind: "skill", source: { rootId: "project", relativePath: ".pi/skills/demo/SKILL.md" }, status: "disabled", loading: "conditional" }),
+    ]));
+  });
+  it("keeps Pi project resources conditional when trust has not been resolved", async () => {
+    const result = await pi.scan(context(
+      { ".pi/settings.json": "{}", ".pi/skills/demo/SKILL.md": "skill" },
+      { ".pi/skills": ["demo"], ".pi/skills/demo": [] },
+    ));
+    expect(result.inventory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "configuration", source: { rootId: "project", relativePath: ".pi/settings.json" }, status: "candidate", loading: "conditional" }),
+      expect.objectContaining({ kind: "skill", source: { rootId: "project", relativePath: ".pi/skills/demo/SKILL.md" }, status: "candidate", loading: "conditional" }),
+    ]));
   });
 });

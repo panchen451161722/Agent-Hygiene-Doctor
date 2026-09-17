@@ -62,6 +62,22 @@ describe("report-v1 JSON schema", () => {
     expect(validate(makeReport()), JSON.stringify(validate.errors)).toBe(true);
   });
 
+  it("accepts Pi report records", async () => {
+    const schema = JSON.parse(await readFile(new URL("../../schema/report-v1.schema.json", import.meta.url), "utf8"));
+    const validate = new Ajv2020({ allErrors: true }).compile(schema);
+    const report = clone(makeReport()) as unknown as {
+      scan: { selectedAgents: string[] };
+      adapters: [{ agent: string }];
+      inventory: [{ agent: string }];
+      diagnostics: [{ agent: string }];
+    };
+    report.scan.selectedAgents = ["pi"];
+    report.adapters[0].agent = "pi";
+    report.inventory[0].agent = "pi";
+    report.diagnostics[0].agent = "pi";
+    expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
+  });
+
   it.each(additionalPropertyCases)(
     "rejects additional properties at %s", async (_label, mutate) => {
     const schema = JSON.parse(await readFile(new URL("../../schema/report-v1.schema.json", import.meta.url), "utf8"));

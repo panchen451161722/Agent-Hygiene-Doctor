@@ -6,7 +6,7 @@ import type { FsBackend } from "./fs/backend.js";
 import { SafeFileSystem } from "./fs/safe-fs.js";
 import { ScanIoSemaphore } from "./fs/semaphore.js";
 
-export const ALLOWLISTED_ENVIRONMENT_KEYS = ["HOME", "USERPROFILE", "LOCALAPPDATA", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "HERMES_HOME", "HERMES_ENABLE_PROJECT_PLUGINS", "PATH", "PATHEXT"] as const;
+export const ALLOWLISTED_ENVIRONMENT_KEYS = ["HOME", "USERPROFILE", "LOCALAPPDATA", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "HERMES_HOME", "HERMES_ENABLE_PROJECT_PLUGINS", "PI_CODING_AGENT_DIR", "PATH", "PATHEXT"] as const;
 export type AllowlistedEnvironment = Readonly<Record<(typeof ALLOWLISTED_ENVIRONMENT_KEYS)[number], string | undefined>>;
 export type AbsolutePath = string & { readonly __absolutePath: unique symbol };
 export type ScanPlatform = "win32" | "darwin" | "linux";
@@ -29,6 +29,7 @@ export const createScanContext = async (options: CreateScanContextOptions): Prom
     { id: "codex-home", kind: "agent-home", alias: "$CODEX_HOME", absolutePath: environment.CODEX_HOME ?? paths.join(userHome, ".codex") },
     { id: "claude-home", kind: "agent-home", alias: "$CLAUDE_CONFIG_DIR", absolutePath: environment.CLAUDE_CONFIG_DIR ?? paths.join(userHome, ".claude") },
     { id: "hermes-home", kind: "agent-home", alias: "$HERMES_HOME", absolutePath: environment.HERMES_HOME ?? (options.platform === "win32" ? paths.join(environment.LOCALAPPDATA ?? paths.join(userHome, "AppData", "Local"), "hermes") : paths.join(userHome, ".hermes")) },
+    { id: "pi-home", kind: "agent-home", alias: "$PI_CODING_AGENT_DIR", absolutePath: environment.PI_CODING_AGENT_DIR ?? paths.join(userHome, ".pi", "agent") },
   ]);
   const limits = deepFreeze({ ...(options.limits ?? SCAN_LIMITS_V1) }) as Readonly<ScanLimitsV1>; const ioSemaphore = options.ioSemaphore ?? new ScanIoSemaphore(limits.maxConcurrentFsOps);
   const safeFs = options.backend === undefined ? undefined : new SafeFileSystem({ backend: options.backend, dialect: paths, semaphore: ioSemaphore, limits, rootRegistry: roots });

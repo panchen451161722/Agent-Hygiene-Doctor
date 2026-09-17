@@ -36,7 +36,7 @@ describe("CLI executable boundary", () => {
     expect(runCli(["doctor", "--agent", "cursor"], runtime)).toBe(2);
     expect(stdout).toEqual([]);
     expect(stderr).toEqual([
-      "fatal: AH-CLI-INVALID-AGENT: Unsupported agent. Expected codex, claude, or hermes.\n",
+      "fatal: AH-CLI-INVALID-AGENT: Unsupported agent. Expected codex, claude, hermes, or pi.\n",
     ]);
   });
 
